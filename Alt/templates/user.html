@@ -1,0 +1,66 @@
+{% extends 'base.html' %} {% load static %}
+
+ {% block content %}
+ <!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Django + Stripe Subscriptions</title>
+<div class="TY Message">
+  <h1>Thank You</h1>
+  <p>
+    You are visiting {{ user.slug }}'s Altrue Page. Here you can learn about the
+    causes and world issues they care about the most, and possibly make a
+    donation to a non profit of {{ user.slug }}'s choice.
+  </p>
+  <img src="{{ user.qr_code_img }}" alt="{{ user.slug }}'s qr code" />
+</div>
+
+<button class="button is-primary" id="submitBtn">Purchase!</button>
+
+{% for shirt in user.shirt_list.all %}
+<div class="ShirtList">
+  <h1>{{ shirt.name }}</h1>
+  {% for atrocity in shirt.Atrocity.all %}
+  <p>{{ atrocity.title }}</p>
+
+  {% endfor %}
+
+  <img
+    src="{{ shirt.shirt_image }}"
+    alt="{{ shirt.name }}"
+    width="450"
+    height="450"
+  />
+</div>
+
+<div class="NPlist">
+  {% for nonprofit in user.nonProfit_list.all %}
+
+  <h2>
+    <a href="{% url 'Alt:nonprofit' nonprofit.slug %}">{{ nonprofit.name }} </a>
+  </h2>
+  {% endfor %}
+</div>
+{% endfor %}
+
+<section class="section">
+  <div class="container">
+    <button class="button is-primary" id="submitBtn">Purchase!</button>
+  </div>
+</section>
+
+{% block scripts %}
+
+ <script src="https://js.stripe.com/v3/"></script>  <!-- new -->
+ <script src="{% static "main.js" %}"></script> <!-- new -->
+
+{% endblock scripts %}
+
+
+
+</html>
+
+{% endblock content %}
+

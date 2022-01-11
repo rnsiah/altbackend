@@ -1,0 +1,32 @@
+[[source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[dev-packages]
+
+[packages]
+djangorestframework = "*"
+django-rest-auth = {extras = ["with-social"], version = "*"}
+djangorestframework-jwt = "*"
+django-cors-headers = "*"
+django-countries = "*"
+stripe = "*"
+django-allauth = "*"
+django-rest-framework = "*"
+segno = "*"
+pillow = "*"
+qrcode = "*"
+django-qr-code = "*"
+django-verify-email = "*"
+drf-extra-fields = "*"
+djangorestframework-bulk = "*"
+drf-writable-nested = "*"
+drf-flex-fields = "*"
+django-filter = "*"
+django = "==3.2.7"
+whitenoise = "*"
+gunicorn = "*"
+
+[requires]
+python_version = "3.8"
