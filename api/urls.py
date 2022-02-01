@@ -1,6 +1,6 @@
 from django.conf.urls import include
 from rest_framework import routers
-from api.views import AllUserCompletedOrders, AllUserDonations, AtrocityList, CategoryList, CompanyList, FeaturedShirts, NPLists, NonProfitList, RatingViewSet, RefugeeShirts, ShirtList, UserCompletedOrders, UserProfileView, UserViewSet, LinkList, UserOrder
+from api.views import  AllUserDonations, AtrocityList, CategoryList, CompanyList, FeaturedShirts, NPLists, NonProfitList, RatingViewSet, RefugeeShirts, RegisterCompany, RegisterNonProfit , ShirtList, UserCompletedOrders, UserProfileView, UserViewSet, LinkList, UserOrder
 from django.urls import path, re_path
 from . import views
 
@@ -24,6 +24,7 @@ router.register('infolinks',LinkList)
 
 
 
+
 urlpatterns = [
     re_path(r'^', include(router.urls)),
     # path('usernonprofits/<int:pk>/', views.UserNonProfitsView.as_view()),
@@ -38,7 +39,9 @@ urlpatterns = [
     path('allusercompletedorders', views.AllUserCompletedOrders.as_view()),
     path('findusers', views.FindUserList.as_view()),
     path('followingDonations/<int:id>', views.UserFollowerDonations.as_view()),
-    path('nonprofs/', views.NPLists.as_view())
+    path('nonprofs/', views.NPLists.as_view()),
+    path('registernp/', RegisterNonProfit.as_view()),
+    path('registerCompany/', RegisterCompany.as_view()),
     # path('cart', views.GetCart.as_view()),
  
 

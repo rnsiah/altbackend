@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import CompanyBalance, CompanyDonation, NonProfitAtrocityRelationShip, NonProfitProject, CompanyAtrocityRelationship, CompanyNonProfitRelationship ,AtrocityShirt, Shirt, Atrocity, Category, NonProfit, Country, Rating, Order, OrderItem, CheckoutAddress, CompanyCoupon, CompanyStore, ForProfitCompany, AltrueAction, AltrueLevel, UserAltrueAction, FriendInvite, AltrueActionCode, ProfileImage
+from .models import CompanyBalance, CompanyDonation, NonProfitAtrocityRelationShip, NonProfitProject, CompanyAtrocityRelationship, CompanyNonProfitRelationship ,AtrocityShirt, Shirt, Atrocity, Category, NonProfit, Country, Rating, Order, OrderItem, CheckoutAddress, CompanyCoupon, CompanyStore, ForProfitCompany, AltrueAction, AltrueLevel, ShirtColor, ShirtSize, ShirtVariations, UserAltrueAction, FriendInvite, AltrueActionCode, ProfileImage
 from Alt.models import AtrocityBalance, NonProfitBalance
 
 
@@ -12,6 +12,9 @@ class ShirtAdmin(admin.ModelAdmin):
 admin.site.register(Shirt, ShirtAdmin)
 
 
+
+admin.site.register(ShirtVariations)
+
 class NonProfitAdmin(admin.ModelAdmin):
     list_display = ('name',)
     prepopulated_fields = {'slug': ('name',)} 
@@ -20,6 +23,14 @@ admin.site.register(NonProfit, NonProfitAdmin)
 
 # Register your models here.
 
+
+admin.site.register(ShirtColor)
+
+class ShirtDisplayAdmin(admin.ModelAdmin):
+    list_display = ['get_size_display']
+    
+    
+admin.site.register(ShirtSize, ShirtDisplayAdmin)
 admin.site.register(Atrocity)
 admin.site.register(Category)
 admin.site.register(AtrocityShirt)
@@ -46,9 +57,12 @@ admin.site.register(FriendInvite)
 
 
 
-class CompanyAdmin(admin.ModelAdmin):
-    list_display=('name',)
-admin.site.register(ForProfitCompany, CompanyAdmin)
+# class CompanyAdmin(admin.ModelAdmin):
+#     list_display=('name',)
+# admin.site.register(ForProfitCompany, CompanyAdmin)
+
+
+admin.site.register(ForProfitCompany)
 
 admin.site.register(CompanyCoupon)
 

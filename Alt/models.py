@@ -17,7 +17,7 @@ from django.utils import timezone
 
 
 class ProfileImage(models.Model):
-    profile = models.OneToOneField("api.UserProfile",  on_delete=models.CASCADE,  related_name ='profile_pic', blank = True, null = True)
+    profile = models.OneToOneField("api.UserProfile",  on_delete=models.CASCADE,  related_name ='profile_pic', blank = True, primary_key = True)
     image = models.ImageField(upload_to= 'profiles', null = True, blank = True)
 
     def __str__(self):
@@ -119,7 +119,7 @@ class FriendInvite(models.Model):
 
 class Category(models.Model):
     name = models.CharField(max_length = 50, blank=False, )
-    image = models.CharField(max_length=50)
+    image = models.CharField(max_length=500)
     information =models.TextField()
 
     
@@ -127,6 +127,8 @@ class Category(models.Model):
         return self.name
     
     
+
+
 
 class AtrocityShirt(models.Model):
     name = models.CharField(max_length=30, blank=False, null=False)
@@ -195,12 +197,48 @@ class Atrocity(models.Model):
         return Atrocity.objects.filter(category__id =self.id)
 
         
-       
 
+
+class ShirtSize(models.Model):
+    
+    SHIRT_SIZE = (
+    (1, 'XS'),
+    (2, 'S'),
+    (3, 'M'),
+    (4, 'L'),
+    (5, 'XL'),
+    (6, 'XXL')
+    
+    )
+    
+    size = models.IntegerField(choices= SHIRT_SIZE, blank = False, null = False)
+    
+    def __str__(self):
+        return str(self.size)
+    
+
+class ShirtColor(models.Model):
+    color = models.CharField( max_length=50)
+    hex_code = models.CharField(max_length= 10, blank=True, null=True)
+
+    def __str__(self):
+        return self.color
+    
+    
+class ShirtVariations(models.Model):
+    image = models.CharField(max_length=100, null = True, blank = True)
+    color = models.ForeignKey(ShirtColor, on_delete=models.CASCADE)
+    shirt = models.ForeignKey("Alt.Shirt", on_delete=models.CASCADE, blank = True, null=True)
+
+    def __str__(self):
+        return self.shirt.name + ' ' + self.color.color
+    
 
 class Shirt(models.Model):
     name = models.CharField(max_length=30, blank=False, null=False)
     price = models.FloatField()
+    available_colors = ManyToManyField(ShirtColor, blank= True)
+    available_sizes = ManyToManyField(ShirtSize, blank = True)
     discount_price = models.FloatField()
     shirt_type = models.CharField(max_length=30, blank=False, null=False) 
     country = models.ForeignKey('Alt.Country', on_delete=models.CASCADE, blank=True, null=True)
@@ -224,6 +262,7 @@ class Shirt(models.Model):
 
     def __str__(self):
         return self.name
+    
     
 
     def addToCart(self):
@@ -263,6 +302,9 @@ def slug_generator(sender, instance, *args, **kwargs):
         instance.slug='SLUG'
 
 pre_save.connect(slug_generator, sender=Shirt)    
+
+
+
     
 class Rating(models.Model):
     id = models.IntegerField(primary_key=True, auto_created=True, editable=False)
@@ -297,7 +339,7 @@ class NonProfit(models.Model):
     date_added= models.DateTimeField(auto_now_add=True)
     main_image= models.CharField(max_length=200, blank= True, null = True)
     owner = models.OneToOneField('api.UserProfile', on_delete=models.CASCADE, related_name='nonprofit', null=True)
-    contributors = models.ManyToManyField('api.UserProfile', related_name='contributors', blank= True)
+    contributors = models.ManyToManyField('api.UserProfile', related_name='contributors', blank= True, null = True)
     facebook = models.CharField(max_length = 30, blank = True, null = True)
     instagram = models.CharField(max_length = 30, blank = True, null = True)
 
@@ -349,6 +391,8 @@ class OrderItem(models.Model):
     user = models.ForeignKey("api.UserProfile", on_delete=models.CASCADE)
     ordered_shirt = models.ForeignKey("Alt.Shirt", on_delete=models.CASCADE)
     quantity = models.IntegerField(default=1)
+    color = models.ForeignKey("Alt.ShirtColor", on_delete=models.CASCADE, related_name='item', blank = True, null = True)
+    size =  models.ForeignKey('Alt.ShirtSize',  on_delete=models.CASCADE, blank = True, null = True )
     ordered = models.BooleanField(default=False)
 
     
@@ -389,6 +433,9 @@ class Order(models.Model):
 
 
 
+class Cart(models.Model):
+    user = models.ForeignKey('api.UserProfile', on_delete=models.CASCADE)
+    items = models.ManyToManyField("Alt.OrderItem" )
 
 
 class CheckoutAddress(models.Model):
@@ -468,20 +515,20 @@ class CompanyStore(models.Model):
 
 class ForProfitCompany(models.Model):
     owner = models.OneToOneField("api.UserProfile", on_delete=models.CASCADE)
-    name= models.CharField(max_length = 30, blank=True, null= True)
+    name= models.CharField(max_length = 30, blank=False, null= False)
     contributors = ManyToManyField("api.UserProfile",related_name='forprofitcontributors', blank=True, null=True)
     nonprofits = ManyToManyField(NonProfit,related_name='company_nonprofit', blank= True)
     atrocities = ManyToManyField(Atrocity, related_name ='company_atrocity', blank = True)
-    year_started = models.CharField(max_length= 4, blank = True, null=True)
+    year_started = models.CharField(max_length= 4, blank = False, null=False)
     logo = models.CharField(max_length = 200, blank=True, null=True)
     image = models.CharField(max_length = 200, blank=True, null=True)
     headquarters = models.CharField(max_length = 50,  blank= True, null= True)
     mission = models.CharField(max_length = 100, blank=True, null= True)
     locations = ManyToManyField(CompanyStore, related_name = 'company', blank=True, null=True)
-    description = models.TextField(blank= True, null = True)
+    description = models.TextField(blank= False, null = False)
     website_address = models.TextField(blank=True, null = True)
     slug = models.SlugField(blank=True, null=True, unique=True)
-    categories = models.ManyToManyField(Category,related_name = 'company')
+    categories = models.ManyToManyField(Category, related_name = 'company', blank = True)
     contributors_pending = models.ManyToManyField('api.UserProfile', related_name='contributors_pending', blank =True)
     is_featured= models.BooleanField(default= False)
     facebook = models.CharField(max_length = 50, blank= True, null =True)
@@ -495,8 +542,8 @@ class ForProfitCompany(models.Model):
     def __str__(self):
         return self.name
 
-    def get_absolute_url(self):
-        return reverse("CompanyStore_detail", kwargs={"pk": self.pk})
+    # def get_absolute_url(self):
+    #     return reverse("CompanyStore_detail", kwargs={"pk": self.pk})
 
     def slugFormatter(self):
         word = self.name
@@ -674,7 +721,7 @@ def create_nonprofit_account(sender, instance=None, created=False, **kwargs ):
 @receiver(post_save, sender = ForProfitCompany)
 def create_company_wallet(sender, instance = None, created=False, **kwargs):
     if created:
-        ForProfitCompany.objects.create(company = instance)
+        CompanyBalance.objects.create(company =instance)
     else:
         comp = CompanyBalance.objects.filter(company =instance)
         if comp.exists():

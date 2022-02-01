@@ -1,11 +1,15 @@
 from os import read
+import profile
 from django.conf import settings
+from datetime import datetime, timedelta
+
 from django.db.models.fields import IntegerField
 from django.db.models.fields.related import RelatedField
+from django.forms import all_valid
 from django.template.defaultfilters import truncatechars_html
 from rest_framework import serializers
 from api.models import AltruePoints, Balance, Donation, Donor, Link, User, UserDonation, UserProfile
-from Alt.models import AltrueAction, AltrueLevel, Atrocity, AtrocityBalance, Category, CompanyAtrocityRelationship, CompanyCoupon, CompanyDonation, CompanyNonProfitRelationship, CompanyStore, Country, ForProfitCompany, NonProfit, NonProfitBalance, Order, OrderItem, Rating, Shirt, NonProfitProject, ProfileImage
+from Alt.models import AltrueAction, AltrueLevel, Atrocity, AtrocityBalance, Category, CompanyAtrocityRelationship, CompanyCoupon, CompanyDonation, CompanyNonProfitRelationship, CompanyStore, Country, ForProfitCompany, NonProfit, NonProfitBalance, Order, OrderItem, Rating, Shirt, NonProfitProject, ProfileImage, ShirtColor, ShirtSize, ShirtVariations
 from django.contrib.auth import get_user_model
 from drf_writable_nested import WritableNestedModelSerializer, UniqueFieldsMixin, NestedUpdateMixin
 from rest_auth.serializers import TokenSerializer
@@ -44,15 +48,7 @@ class DynamicFieldsModelSerializer(serializers.ModelSerializer):
                 self.fields.pop(field_name)
 
 
-class ProfileRepSerializer(FlexFieldsModelSerializer):
-    user= serializers.SerializerMethodField()
-    class Meta:
-        model = UserProfile
         
-        fields =['user','username']
-
-    def get_user(self,obj):
-        return obj.user.pk
 
 
 class AltrueLevelSerializer(FlexFieldsModelSerializer):
@@ -71,6 +67,40 @@ class ProfileImageSerializer(FlexFieldsModelSerializer):
     def get_url(self,obj):
         if settings.DEBUG:  # debug enabled for dev and stage
             return 'http://localhost:8000'+ obj.image.url 
+
+
+
+
+class ProfileRepSerializer(FlexFieldsModelSerializer):
+    id = serializers.SerializerMethodField()
+    profile_picture = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = UserProfile
+        
+        fields =['username','id', 'profile_picture']
+
+    def get_id(self,obj):
+        return obj.pk
+    
+    def get_profile_picture(self, obj):
+        pic = ProfileImage.objects.get(profile = obj)
+        serialized = ProfileImageSerializer(pic).data
+        return serialized
+
+        
+
+class ColorSerializer(FlexFieldsModelSerializer):
+    
+    hex = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = ShirtColor
+        fields =['color','id', 'hex']
+    
+    def get_hex(self, obj):
+        return '0xFF' + obj.hex_code
+
 
 class CountrySerializer(FlexFieldsModelSerializer):
     class Meta:
@@ -118,7 +148,7 @@ class ProjectRepSerializer(FlexFieldsModelSerializer):
 
     class Meta:
         model = NonProfitProject
-        fields = ['title', 'fundraising_goal', 'information', 'cause','supporters', 'followers']
+        fields = ['id','title', 'fundraising_goal', 'information', 'cause','supporters', 'followers']
 
     def get_fundraising_goal(self, obj):
         return str(obj.fundraising_goal)
@@ -128,6 +158,20 @@ class CategoryField(serializers.PrimaryKeyRelatedField):
         category = Category.objects.get(id = value.id)
         serializer = CategorySerializer(category)
         return serializer.data
+
+
+class ShirtSizeSerializer(FlexFieldsModelSerializer):
+    
+    
+    sizevalue = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = ShirtSize
+        fields = ['size', 'sizevalue']
+        
+    def get_sizevalue(self, obj):
+        return obj.get_size_display()
+
 
 
 class NonProfitBalanceSerializer(FlexFieldsModelSerializer):
@@ -173,6 +217,8 @@ class AtrocitySerializer(FlexFieldsModelSerializer):
                     
         
 
+
+
 class ShirtAtrocitySerializer(FlexFieldsModelSerializer):
     country = CountrySerializer(read_only= True, required = False)
     category = CategorySerializer(many= True, read_only=True, required= False)
@@ -184,7 +230,11 @@ class ShirtAtrocitySerializer(FlexFieldsModelSerializer):
 
 
 
-
+class ShirtVariationSerializer(FlexFieldsModelSerializer):
+    color = ColorSerializer( read_only = True)
+    class Meta:
+        model = ShirtVariations
+        fields = ['image', 'color' ,'shirt']
 
 class ShirtSerializer (FlexFieldsModelSerializer):
     
@@ -193,8 +243,9 @@ class ShirtSerializer (FlexFieldsModelSerializer):
     category = CategorySerializer( read_only=True, required = False)
     atrocityList = ShirtAtrocitySerializer(read_only =True, required= False, many = True)
     similar_shirts = AtrocityShirtSerializer(read_only =True, many = True)
-
-
+    available_colors = ColorSerializer(many = True, read_only =True)
+    available_sizes = ShirtSizeSerializer(many= True, read_only =True)
+    variations = serializers.SerializerMethodField()
 
 
    
@@ -203,11 +254,24 @@ class ShirtSerializer (FlexFieldsModelSerializer):
     class Meta:
         
         model = Shirt
-        fields = ['id', 'name', 'price', 'country',
+        fields = ['id', 'name', 'price', 'country','available_colors','available_sizes',
          'shirt_image', 'category', 'slug','original_image', 'no_of_ratings', 
-         'average_rating','altrue_story', 'similar_shirts', 'atrocityList']
+         'average_rating','altrue_story', 'similar_shirts', 'atrocityList', 'variations']
         
+    def get_variations(self, obj):
+        lis = []
+        variations = ShirtVariations.objects.filter(shirt_id = obj.id)
+        for variation in variations:
+            lis.append(variation)
+        response = ShirtVariationSerializer(lis, many = True, read_only=True)
+        return response.data       
     
+    
+    # def get_available_colors(self, obj):
+    #     li =[]
+    #     for color in obj.avaialable_colors.all():
+    #         ShirtColor.objects.get(c)
+            
     
 
 
@@ -263,19 +327,28 @@ class NonProfitListSerializer(serializers.ListSerializer):
 
 
 class NonProfitSerializer(FlexFieldsModelSerializer):
-
-    
+    # name = serializers.CharField()
+    # instagram = serializers.CharField()
+    # facebook = serializers.CharField()
+    # description = serializers.CharField()
+    # year_started = serializers.IntegerField()
+    # vision_statement = serializers.CharField()
+    # mission_statement = serializers.CharField()
+    # website_url = serializers.URLField()
     category = CategorySerializer(many= True, read_only=True)
     atrocity_List = ShirtAtrocitySerializer(many=True, read_only =True)
     shirtList = AtrocityShirtSerializer(many = True, read_only = True)
     links = serializers.SerializerMethodField()
     projects = serializers.SerializerMethodField()
+    owner = ProfileRepSerializer(read_only = True)
+    donationsInWeek = serializers.SerializerMethodField(read_only= True)
+    
 
 
     class Meta:
         model = NonProfit
-        fields = ('id','name','logo', 'description', 'year_started', 'mission_statement','vision_statement','website_url','category','slug', 'shirtList', 'main_image','total_balance', 'atrocity_List','companies_supporting','nonprofit_links','links', 'projects',)
-        depth = 3
+        fields = ['id','owner','name','logo', 'description', 'year_started', 'mission_statement','vision_statement','website_url','category','slug', 'shirtList', 'main_image','total_balance', 'atrocity_List','companies_supporting','nonprofit_links','links', 'projects','donationsInWeek']
+        depth = 1
     
     def get_links(self, obj):
         links =Link.objects.filter(nonprofit = obj)
@@ -287,7 +360,16 @@ class NonProfitSerializer(FlexFieldsModelSerializer):
             "title" : link.title}
             linkList.append(linkrep)
         return linkList
-                                 
+    
+    def get_donationsInWeek(self, obj):
+        startdate = datetime.today()
+        enddate = startdate + timedelta(days=6)
+        companydonations =CompanyDonation.objects.filter(donation_date__range = [startdate, enddate])
+        userdonations = UserDonation.objects.filter(donation_date__range = [startdate, enddate])           
+        all_donations = len(companydonations) + len(userdonations)
+        return all_donations
+        
+                      
     def get_projects(self, obj):
         projects = NonProfitProject.objects.filter(nonprofit = obj)
         projectList = []
@@ -312,6 +394,9 @@ class NonProfitSerializer(FlexFieldsModelSerializer):
             # projectList.append(project_rep)
         return response.data
             
+    def create(self, validated_data):
+        
+        NonProfit.objects.create(**validated_data)
 
 class RatingSerializer(FlexFieldsModelSerializer):
 
@@ -361,22 +446,33 @@ class UserSerializer(FlexFieldsModelSerializer):
         return instance
 
  
+ 
+ 
 
 class OrderShirtSerializer(FlexFieldsModelSerializer):
+    
+    
     class Meta:
         model= Shirt
-        fields =('id','name','price','shirt_type','shirt_image','slug')
+        fields =('id','name','price','shirt_type','shirt_image','slug',)
+        omit =['available_sizes','available_colors']
 
 
 class OrderItemSerializer(FlexFieldsModelSerializer):
-    ordered_shirt = OrderShirtSerializer  
+    ordered_shirt = OrderShirtSerializer(omit=['avaialable_sizes', 'available_colors']) 
+    size = ShirtSizeSerializer() 
+    color = ColorSerializer()
+    
     
     class Meta:
               
         model = OrderItem
         depth=2
-        fields=('ordered_shirt', 'quantity')
-        
+        fields=('ordered_shirt', 'quantity', 'color', 'size')
+    
+    def create(self, validated_data):
+        return OrderItem(**validated_data)
+    
 
 
 class OrderSerializer(FlexFieldsModelSerializer):
@@ -415,8 +511,9 @@ class UserDonationSerializer(FlexFieldsModelSerializer):
             category = categories[0]
             return category.name
 
-        
-
+    def create(self, validated_data):
+        return UserDonation(**validated_data)   
+    
 
 class DonorSerializer(FlexFieldsModelSerializer):
     
@@ -444,7 +541,7 @@ class UserProfileSerializer(FlexFieldsModelSerializer):
     donor = DonorSerializer(many= True)
     orders = OrderSerializer(many = True)
     atrocity_list = AtrocitySerializer(many=True)
-    shirt_list = ShirtSerializer(many = True, )
+    shirt_list = ShirtSerializer(many = True, omit=['available_sizes', 'available_colors'])
     nonProfit_list= NonProfitSerializer(many=True)
     userdonations = UserDonationSerializer(many=True, fields = [])
     NPTotals = serializers.SerializerMethodField()
@@ -452,13 +549,16 @@ class UserProfileSerializer(FlexFieldsModelSerializer):
     altruepoints = serializers.SerializerMethodField()
     profile_picture = serializers.SerializerMethodField()
     altrue_level = AltrueLevelSerializer(read_only =True)
+    amount_followers = serializers.SerializerMethodField()
+    # following = ProfileRepSerializer(many = True)
+
     requirementsForNextLevel = AltrueActionSerializer(many = True, read_only = True)
     # pointsToNextLevel = serializers.SerializerMethodField()
 
       
     class Meta:
         model = UserProfile
-        fields = ('user','username','altrue_level','title', 'dob', 'address', 'country', 'city', 'zip', 'qr_code_img', 'has_company','has_nonprofit','is_companyContributor','is_nonprofitContributor','shirt_list', 'atrocity_list', 'nonProfit_list', 'balance', 'donor', 'orders', 'userdonations', 'amount_following','amount_followers', 'NPTotals' ,'AtroTotals', 'altruepoints', 'profile_picture', 'altrue_level','requirementsForNextLevel')
+        fields = ('user','username','altrue_level','title', 'dob', 'address', 'country', 'city', 'zip', 'qr_code_img', 'has_company','has_nonprofit','is_companyContributor','is_nonprofitContributor','shirt_list', 'atrocity_list', 'nonProfit_list','following', 'balance', 'donor', 'orders', 'userdonations', 'amount_following','amount_followers', 'NPTotals' ,'AtroTotals', 'altruepoints', 'profile_picture', 'altrue_level','requirementsForNextLevel')
         expandable_fields ={}
     
     def create(self, validated_data):
@@ -469,6 +569,18 @@ class UserProfileSerializer(FlexFieldsModelSerializer):
         serialized = ProfileImageSerializer(img).data
         return serialized
     
+
+    def get_amount_followers(self, obj):
+        users  = UserProfile.objects.all()
+        
+        
+        for user in users:
+            lis = 0
+            if obj in user.following.all():
+                lis+=1
+        return lis
+    
+
     def get_pointsToNextLevel(self, obj):
         userPoints = AltruePoints.objects.get(account =obj)
         next_level = AltrueLevel.objects.get(level_number = obj.altrue_level.level_number +1)
@@ -539,6 +651,9 @@ class CompanyCouponSerializer(FlexFieldsModelSerializer):
     class Meta:
         model = CompanyCoupon
         fields = ['name', 'expiration_date', 'description', 'coupon_image','coupon_code']
+        
+    def create(self, validated_data):
+        return CompanyCoupon(**validated_data)
 
 class LinkSerializer(FlexFieldsModelSerializer):
     atrocity = AtrocitySerializer()
@@ -577,12 +692,18 @@ class CompanyAtrocityRelationShipSerializer(FlexFieldsModelSerializer):
         fields = ['atrocity','match_level', 'total_raised','funding_limit']
         
         
+    def create(self, validated_data):
+        return CompanyAtrocityRelationship(**validated_data)
+        
 class CompanyNonProfitRelationshipSerializer(FlexFieldsModelSerializer):
     nonprofit = NonProfitSerializer(fields =['id', 'name', 'logo'])
     
     class Meta:
         model = CompanyNonProfitRelationship
         fields = ['nonprofit', 'match_level', 'total_raised','funding_limit']
+        
+    def create(self, validated_data):
+        return CompanyNonProfitRelationship(**validated_data)
 
 class ForProfitCompanySerializer(FlexFieldsModelSerializer):
     categories = CategorySerializer(many=True)
@@ -596,6 +717,7 @@ class ForProfitCompanySerializer(FlexFieldsModelSerializer):
     nonprofitRelationships = serializers.SerializerMethodField()
     totalDonated = serializers.SerializerMethodField()
     totalDonationCount = serializers.SerializerMethodField()
+    
     
     
     class Meta:
@@ -659,6 +781,16 @@ class ForProfitCompanySerializer(FlexFieldsModelSerializer):
             lis.append(serialized)
         return lis
     
+    def create(self, validated_data):
+        profile = validated_data.pop('owner')
+        return ForProfitCompany.objects.create(**validated_data)
+    
+    def update(self, instance, validated_data):
+        instance.mission = validated_data.get('mission', instance.mission)
+        instance.description = validated_data.get('description', instance.description)
+        instance.website_address = validated_data.get('website_address', instance.website_address)
+        instance.facebook = validated_data.get('facebook', instance.facebook)
+        instance.instagram = validated_data.get('instagram', instance.instagram)
     
     
 # class CompanyMatchDonationSerializer(FlexFieldsModelSerializer):
@@ -671,10 +803,10 @@ class ForProfitCompanySerializer(FlexFieldsModelSerializer):
 class NonProfitProjectSerializer(FlexFieldsModelSerializer):
     nonprofit = NonProfitSerializer
     cause = CategorySerializer
-    atrocity = AtrocitySerializer
+    atrocity = AtrocitySerializer()
     
     class Meta:
         model = NonProfitProject
-        fields = ['nonprofit', 'cause', 'atrocity','information','fundraising_goal']
+        fields = ['id','nonprofit', 'cause', 'atrocity','information','fundraising_goal']
 
 

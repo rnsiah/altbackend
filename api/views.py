@@ -1,3 +1,4 @@
+from urllib import response
 from django.contrib.auth.decorators import permission_required
 from django.db.models.query import Prefetch
 from django.forms.models import model_to_dict
@@ -10,7 +11,7 @@ from Alt.models import Atrocity, Category, CompanyStore, ForProfitCompany, NonPr
 from api.models import Balance, Link, User, UserDonation, UserProfile
 from rest_framework.response import Response
 from rest_framework.decorators import action, authentication_classes, permission_classes
-from .serializers import CompanyStoreSerializer, NonProfitListSerializer, OrderItemSerializer, ShirtListSerialzier, ShirtSerializer, NonProfitSerializer, AtrocitySerializer,  CategorySerializer, RatingSerializer, UserProfileSerializer
+from .serializers import CompanyStoreSerializer, NonProfitListSerializer, OrderItemSerializer, ProfileRepSerializer, ShirtListSerialzier, ShirtSerializer, NonProfitSerializer, AtrocitySerializer,  CategorySerializer, RatingSerializer, UserProfileSerializer
 from api.serializers import ForProfitCompanySerializer, LinkSerializer, OrderSerializer, UserDonationSerializer, UserSerializer
 from api.permissions import IsLoggedInUserOrAdmin, IsAdminUser
 from django.shortcuts import get_object_or_404
@@ -51,7 +52,7 @@ class UserProfileFinder(generics.RetrieveUpdateDestroyAPIView):
 
 
 class UserProfileView(viewsets.ModelViewSet):
-  queryset=UserProfile.objects.all()
+  queryset=UserProfile.objects.filter()
   serializer_class = UserProfileSerializer
   authentication_classes = (TokenAuthentication, )
 
@@ -84,33 +85,35 @@ class UserProfileView(viewsets.ModelViewSet):
   def manageUserFollowers(self, request, *args, **kwargs):
     profile = self.get_object()
     following_list = profile.following.all()
-    profile_to_follow = UserProfile.objects.get(id = request.data['id'])
-    if request.data['follow']:
-      try:
-        if profile_to_follow not in following_list:
-          profile.following.add(profile_to_follow)
-          profile.save()
-          response = {'message': 'Now Following ${profile_to_follow.username}'}
-          return Response(response, status=status.HTTP_200_OK )
-        else:
-          response = {'message': 'You are already Following This Profile'}
-          return Response(response, status=status.HTTP_200_OK)
-      except:
-        response = {"message" :'Something Went Wrong'}
+    lo = request.data
+    profile_to_follow = User.objects.get(id = request.data['id'])
+    
+    try:
+      if profile_to_follow not in following_list:
+        profile.following.add(profile_to_follow)
+        profile.save()
+        response = {'message': 'Now Following ${profile_to_follow.username}'}
+        return Response(response, status=status.HTTP_200_OK )
+      else:
+        response = {'message': 'You are already Following This Profile'}
         return Response(response, status=status.HTTP_200_OK)
-    elif request.data['unfollow']:
-      try:
-        if profile_to_follow in following_list:
-          profile.following.remove(profile_to_follow)
-          profile.save()
-          response = {'message': 'You have unfollowed ${profile_to_follow.username}'}
-          return Response(response, status=status.HTTP_200_OK)
-        else:
-          response = {'message': 'You are not Following This Profile'}
-          return Response(response, status=status.HTTP_200_OK)
-      except:
-        response = {"message" :'Something Went Wrong'}
-        return Response(response, status=status.HTTP_200_OK) 
+    except:
+      response = {"message" :'Something Went Wrong adding' +" " +str(lo) }
+      return Response(response, status=status.HTTP_200_OK)
+      
+    # elif request.data['unfollow'] is 'unfollow':
+    #   try:
+    #     if profile_to_follow in following_list:
+    #       profile.following.remove(profile_to_follow)
+    #       profile.save()
+    #       response = {'message': 'You have unfollowed ${profile_to_follow.user.}'}
+    #       return Response(response, status=status.HTTP_200_OK)
+    #     else:
+    #       response = {'message': 'You are not Following This Profile'}
+    #       return Response(response, status=status.HTTP_200_OK)
+    #   except:
+    #     response = {"message" :'Something Went Wrong'}
+    #     return Response(response, status=status.HTTP_200_OK) 
 
 
         
@@ -302,14 +305,20 @@ class UserProfileView(viewsets.ModelViewSet):
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
+    authentication_classes =(TokenAuthentication,)
+    
+    
+    # def get_object(self, pk):
+    #     return User.objects.get(pk= request.user.id)
 
-
+    
+    
     def get_permissions(self):
         permission_classes = []
         if self.action == 'create':
             permission_classes = [AllowAny]
         elif self.action == 'retrieve' or self.action == 'update' or self.action == 'partial_update':
-            permission_classes = [IsLoggedInUserOrAdmin]
+            permission_classes = [IsAuthenticated]
         elif self.action == 'list' or self.action == 'destroy':
             permission_classes = [IsAdminUser]
         return [permission() for permission in permission_classes]
@@ -320,8 +329,7 @@ class UserViewSet(viewsets.ModelViewSet):
   
 
 class ForProfitCompanyAddLocation(APIView):
-  permission_classes= (IsAuthenticated,)
-
+  authentication_classes = (TokenAuthentication, )
 
   def get_object(self, pk):
     try: 
@@ -341,17 +349,33 @@ class ForProfitCompanyAddLocation(APIView):
   
 
 class FindUserList(APIView):
-  permission_classes = (IsAuthenticated, )
+  authentication_classes = (TokenAuthentication, )
 
   def get(self,request, format=None):
-    users = UserProfile.objects.all()
+    
+    # me = UserProfile.objects.get(user = request.user)
+    users = UserProfile.objects.exclude(user = request.user)
+    
     userlist = []
     for profile in users:
-      representation = {'username': str(profile.username),
-      'id': (profile.user.id)}
-  
-      userlist.append(representation)
+     serialized = ProfileRepSerializer(profile).data
+     userlist.append(serialized)
+      
     return Response(userlist)
+
+class FollowingList(APIView):
+  authentication_classes =(TokenAuthentication,)
+  def get(self, request, format =None):
+    following_list = []
+    
+    me = UserProfile.objects.get(user = request.user)
+    for profile in me.following.all():
+      representation = {'username': str(profile.username),
+      'id':(profile.user.id)}
+      following_list.append(representation)
+    
+    return Response(following_list)
+
 
 
 class LinkList(viewsets.ModelViewSet):
@@ -363,7 +387,7 @@ class LinkList(viewsets.ModelViewSet):
 
 
 class UserProfileDetail(APIView):
-   permission_classes = (IsAuthenticated, )
+   authentication_classes = (TokenAuthentication, )
 
    def get_object(self, pk):
     try:
@@ -424,7 +448,7 @@ class ShirtList(viewsets.ModelViewSet):
         response = {'message': 'Rating Updated', 'result':serializer.data}
         return Response(response, status=status.HTTP_200_OK)
       except:
-        rating = Rating.objects.create(user =user, shirt= shirt)
+        rating = Rating.objects.create(user =user, shirt= shirt, stars= stars)
         serializer =RatingSerializer(rating)
         response = {'message': 'Rating Created', 'result':serializer.data}
         return Response(response, status=status.HTTP_200_OK)
@@ -434,11 +458,18 @@ class ShirtList(viewsets.ModelViewSet):
 
   
 class CompanyList(viewsets.ModelViewSet):
-  permission_classes = (IsAuthenticated,  )
+  authentication_classes = (TokenAuthentication, )
   
   serializer_class = ForProfitCompanySerializer
   queryset = ForProfitCompany.objects.all()
 
+  # def create(self, request):
+  #   profile = UserProfile.objects.get(user = request.user)
+  #   serializer = ForProfitCompanySerializer(data = request.data)
+  #   if serializer.is_valid:
+  #     serializer.save
+      
+    
   @action(detail=True, methods=['patch'])
   def add_contributor(self, request, *args, **kwargs):
     company = self.get_object()
@@ -470,9 +501,57 @@ class CompanyList(viewsets.ModelViewSet):
     serializer = ForProfitCompanySerializer(companies, many = True)
     response = {'message': 'Companies', 'result':serializer.data}
     return Response(serializer.data)
+  
+  
+class RegisterCompany(generics.CreateAPIView):
+  authentication_classes=(TokenAuthentication,)
+  serializer_class = ForProfitCompanySerializer
+  
+  def post(self, request):
+    profile = get_object_or_404(UserProfile, user = request.user )
+    serialized= ForProfitCompany.objects.create(mission =request.data['mission'], name = request.data['name'], owner = profile, year_started = request.data['year_started'], description= request.data['description'])
+    if profile.pk == request.data['owner']['user'] and serialized.is_valid():
+      serialized.save()
+      response ={'message':'Company {request.data[name]} created', "result": serialized.data}
+      return Response(response,status = status.HTTP_201_CREATED)
+    
+
+      
+
+class RegisterNonProfit(generics.CreateAPIView):
+  authentication_classes =(TokenAuthentication,)
+  serializer_class = NonProfitSerializer
+  def post(self, request):
+    serialized = NonProfitSerializer(data =request.data)
+    profile = get_object_or_404(UserProfile, user = request.user)
+   
+
+    # serializer = NonProfitSerializer( name=name, vision_statement = vision, mission_statement= mission, 
+    # year_started = year_started, description = description, facebook = facebook, instagram = instagram, website_url = website )
+    if serialized.is_valid():
+      name = serialized.validated_data['name']
+      vision = serialized.validated_data['vision_statement']
+      mission = serialized.validated_data['mission_statement']
+      year_started = serialized.validated_data['year_started']
+      description = serialized.validated_data['description']
+      website= serialized.validated_data['website_url']
+      instagram = serialized.validated_data['instagram']
+      facebook = serialized.validated_data['facebook']
+      
+      np = NonProfit.objects.create(owner = profile, name = name ,
+      year_started = year_started, 
+      vision_statement = vision,mission_statement = mission, description = description, website_url = website, instagram = instagram, facebook =facebook,
+      slug = name)
+      np.save()
+      serializ = NonProfitSerializer(np)
+      response={'message': 'NonProfit Created','result': serializ.data}
+
+      return Response(response, status= status.HTTP_200_OK)
+    return Response(serialized.errors)
+  
+       
 
 
-     
 class NonProfitList(viewsets.ModelViewSet):
   permission_classes = []
   serializer_class = NonProfitSerializer
@@ -590,7 +669,7 @@ class UserOrder(viewsets.ModelViewSet):
   
 
 class UserCompletedOrders(viewsets.ModelViewSet):
-  permission_classes= [IsAuthenticated]
+  authentication_classes = []
   serializer_class= OrderSerializer
   
   # user = request.user
@@ -600,7 +679,7 @@ class UserCompletedOrders(viewsets.ModelViewSet):
   
 
 class AllUserCompletedOrders(generics.ListAPIView):
-  permission_classes= [IsAuthenticated]
+  authentication_classes = [TokenAuthentication, ]
   serializer_class = OrderSerializer
   
   def get_queryset(self):

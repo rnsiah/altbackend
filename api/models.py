@@ -93,18 +93,20 @@ class UserProfile(models.Model):
         return len(people_following)
     
     @property
-    def amount_followers(self):
-        user = User.objects.all()
-        lis=[]
-        for use in user:
-            users = UserProfile.objects.get(user = use )
-            thelist = users.following.all()
-            if self in thelist:
-                lis.append(users)
-        return len(lis)
-        
+    def follower_list(self):
+        follow_list= []
+        users = self.following.all()
+        pic = ProfileImage.objects.get(profile = self)
+        for user in users:
+            representation = {'username': str(user.username),
+            'id': (user.user.id),
+            'profile_pic': pic.image }
+            follow_list.append(representation)
+        return follow_list
+            
 
         
+
     
 
     def get_absolute_url(self):
@@ -181,6 +183,8 @@ class UserProfile(models.Model):
             self.qr_code_img.save(filename, django_file, save=False)
 
     
+
+
 
 class Balance(models.Model):
     account = models.OneToOneField('api.UserProfile', on_delete=models.CASCADE, primary_key=True, related_name='balance')
