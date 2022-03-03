@@ -5,7 +5,7 @@ app_name= 'StripeAPI'
 
 
 urlpatterns = [
-    path('stripe-checkout/', views.stripe_checkout.as_view(), name='stripe-checkout'),
+    path('stripe-checkout/', views.stripe_checkout.as_view(), name='home'),
     path('config/', views.stripe_config),
     path('create-checkout-session/', views.create_checkout_session, name ='create-checkout-session'),
     path('cancelled/', views.CancelledView.as_view(), name='cancelled'),

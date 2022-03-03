@@ -25,7 +25,7 @@ SECRET_KEY = 'w-)hxaw4=&*rfiix__5*+o*(ss)g+21+b)rh$jpy)xmc(0u-^d'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost', 'dd05-2601-2c6-47e-4690-e9bb-3d97-d2ca-570a.ngrok.io']
+ALLOWED_HOSTS = ['localhost', '1cb5-98-200-13-99.ngrok.io', '127.0.0.1', '10.0.0.238','10.0.0.161']
 
 
 # Application definition
@@ -161,11 +161,9 @@ USE_TZ = False
 
 STATIC_URL = '/static/' 
 
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+# STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
-STATICFILES_DIRS = (
-    os.path.join(BASE_DIR, 'static'),
-)
+STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')] 
 
 
 MEDIA_ROOT = os.path.join(os.path.dirname(BASE_DIR), "media_root")
@@ -180,8 +178,8 @@ CORS_ALLOWED_ORIGINS = [
    
 ]
 
-STRIPE_SECRET_KEY ='sk_test_51HF8cGLtfSZy4bJMhU10RNlsqEYNLbxtBR3PSPMifN3G1eIGj5hE7vqulj4S9ORPCHPnU0iWW2GQbKOP2cntkAel00xkfeeSQC'
-STRIPE_PUBLISHABLE_KEY = 'pk_test_51HF8cGLtfSZy4bJME1EEVB3NK2ymtrhBc90Rnl1M3vqaszeVi91JLHYhvjNOxJMlPffbmupoefjGABVNjFSIHPtK00u4F0AOwd'
+STRIPE_SECRET_KEY ='sk_test_g3VXQt3Thc8sUCGp182ybZmN'
+STRIPE_PUBLISHABLE_KEY = 'pk_test_osCkw6g4MDSTjwXhs0RzOwL0'
 
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'

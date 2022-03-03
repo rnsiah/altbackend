@@ -3,7 +3,7 @@ from django.contrib import admin
 from django.utils.translation import gettext_lazy as _
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
-from .models import Donation, Donor, User, UserProfile, Balance, CompanyMatchDonation
+from .models import Donation, Donor, NonProfitRequest, RequestVotes, User, UserProfile, Balance, CompanyMatchDonation
 from api.models import AltruePoints, Link, UserDonation
 
 
@@ -39,6 +39,11 @@ class DonorAdmin(admin.ModelAdmin):
     list_display = ('email', 'last_name', 'amount_donated', 'sent_to', 'first_name')
 
 
+admin.site.register(NonProfitRequest)
+
+admin.site.register(RequestVotes)
+
+
 class BalanceAdmin(admin.ModelAdmin):
     model = Balance
     fields = ('account', 'balance')
@@ -66,7 +71,7 @@ admin.site.register(AltruePoints, AltruePointsAdmin)
 
 
 class UserDonationAdmin(admin.ModelAdmin):
-    list_display = ('user', 'amount', 'nonprofit', 'atrocity')
+    list_display = ('user', 'amount', 'nonprofit', 'atrocity','project')
     
 admin.site.register(UserDonation, UserDonationAdmin)
 

@@ -1,3 +1,4 @@
+from unicodedata import category
 from urllib import response
 from django.contrib.auth.decorators import permission_required
 from django.db.models.query import Prefetch
@@ -7,11 +8,11 @@ from rest_framework import viewsets, generics, status
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.authentication import TokenAuthentication
-from Alt.models import Atrocity, Category, CompanyStore, ForProfitCompany, NonProfit, Order, Rating, Shirt
+from Alt.models import Atrocity, Category, CompanyStore, ForProfitCompany, NonProfit, NonProfitProject, Order, Rating, Shirt, ShirtVariations
 from api.models import Balance, Link, User, UserDonation, UserProfile
 from rest_framework.response import Response
 from rest_framework.decorators import action, authentication_classes, permission_classes
-from .serializers import CompanyStoreSerializer, NonProfitListSerializer, OrderItemSerializer, ProfileRepSerializer, ShirtListSerialzier, ShirtSerializer, NonProfitSerializer, AtrocitySerializer,  CategorySerializer, RatingSerializer, UserProfileSerializer
+from .serializers import CompanyStoreSerializer, NonProfitListSerializer, NonProfitProjectSerializer, OrderItemSerializer, ProfileRepSerializer, ShirtListSerialzier, ShirtSerializer, NonProfitSerializer, AtrocitySerializer,  CategorySerializer, RatingSerializer, ShirtVariationSerializer, UserProfileSerializer
 from api.serializers import ForProfitCompanySerializer, LinkSerializer, OrderSerializer, UserDonationSerializer, UserSerializer
 from api.permissions import IsLoggedInUserOrAdmin, IsAdminUser
 from django.shortcuts import get_object_or_404
@@ -81,26 +82,40 @@ class UserProfileView(viewsets.ModelViewSet):
     response = {'message': 'You have donated ${amount} to help ${atrocity.title}'}
     return Response(response, status=status.HTTP_201_CREATED)
 
-  @action(detail=True, methods=['patch'])
+  @action(detail=True, methods=['post'])
   def manageUserFollowers(self, request, *args, **kwargs):
     profile = self.get_object()
-    following_list = profile.following.all()
+    following_list = profile.profiles_following.all()
     lo = request.data
-    profile_to_follow = User.objects.get(id = request.data['id'])
-    
-    try:
-      if profile_to_follow not in following_list:
-        profile.following.add(profile_to_follow)
-        profile.save()
-        response = {'message': 'Now Following ${profile_to_follow.username}'}
-        return Response(response, status=status.HTTP_200_OK )
-      else:
-        response = {'message': 'You are already Following This Profile'}
+    profile_to_follow = UserProfile.objects.get(user= request.data['id'])
+    if request.data['following'] == 'follow':
+      try:
+        if profile_to_follow not in following_list:
+          profile.profiles_following.add(profile_to_follow)
+          profile.save()
+          serialized = ProfileRepSerializer(profile.profiles_following, many = True)
+          response = {'message': f'Now Following {profile_to_follow.username}'},serialized.data
+
+          return Response(response, status=status.HTTP_200_OK )
+        else:
+          response = {'message': 'You are already Following This Profile'}
+          return Response(response, status=status.HTTP_200_OK)
+      except:
+        response = {"message" :'Something Went Wrong adding' +" " +str(lo) }
         return Response(response, status=status.HTTP_200_OK)
-    except:
-      response = {"message" :'Something Went Wrong adding' +" " +str(lo) }
-      return Response(response, status=status.HTTP_200_OK)
-      
+    elif request.data['following'] == 'unfollow' and profile_to_follow in following_list:
+      try:
+        profile.profiles_following.remove(profile_to_follow)
+        profile.save()
+        serialized = ProfileRepSerializer(profile.profiles_following, many = True)
+        response ={'message': f'You have just unfollowed {profile_to_follow.username}',
+                   }, serialized.data
+        return Response(response, status =status.HTTP_201_CREATED)
+      except:
+        response = {'message': 'something went wrong when unfollowing user'}
+    return Response(status = status.HTTP_501_NOT_IMPLEMENTED)
+  
+         
     # elif request.data['unfollow'] is 'unfollow':
     #   try:
     #     if profile_to_follow in following_list:
@@ -299,7 +314,8 @@ class UserProfileView(viewsets.ModelViewSet):
 
 
 
-
+  
+  
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -430,6 +446,21 @@ class ShirtList(viewsets.ModelViewSet):
 
   serializer_class = ShirtSerializer
   queryset= Shirt.objects.all()
+  
+  @action(detail=True, methods=['get'])
+  def getShirt(self, request, *args, **kwargs):
+    name = request.Get.get('name')
+    shirt = Shirt.objects.get(name = name)
+    serialized = ShirtSerializer(shirt, fields =['id','name','price','shirt_image' ])
+    return serialized.data
+  
+  
+  @action(detail=True, methods=['get'])
+  def getVariation(self, request, pk):
+    color = request.GET.get('color')
+    variation= ShirtVariations.objects.get(shirt_id =pk , color__color = color)
+    serialized = ShirtVariationSerializer(variation)
+    return Response(serialized.data, status=status.HTTP_200_OK)
 
   @action(detail=True, methods=['POST'])
   def rate_shirt(self,request, pk=None):
@@ -503,50 +534,91 @@ class CompanyList(viewsets.ModelViewSet):
     return Response(serializer.data)
   
   
-class RegisterCompany(generics.CreateAPIView):
+class  RegisterCompany(generics.CreateAPIView):
   authentication_classes=(TokenAuthentication,)
   serializer_class = ForProfitCompanySerializer
   
   def post(self, request):
     profile = get_object_or_404(UserProfile, user = request.user )
-    serialized= ForProfitCompany.objects.create(mission =request.data['mission'], name = request.data['name'], owner = profile, year_started = request.data['year_started'], description= request.data['description'])
-    if profile.pk == request.data['owner']['user'] and serialized.is_valid():
-      serialized.save()
-      response ={'message':'Company {request.data[name]} created', "result": serialized.data}
-      return Response(response,status = status.HTTP_201_CREATED)
-    
+    if profile.pk == request.data['owner']['user']:
+      serialized= ForProfitCompany.objects.create(mission =request.data['mission'], name = request.data['name'], owner = profile, year_started = request.data['year_started'], description= request.data['description'],website_address = request.data['website_address'] )
+      if serialized:
+        profile.has_company = True
+        profile.save(update_fields =['has_company'])
+        serial = ForProfitCompanySerializer(serialized)
+        response ={f'message':'Company {serial.name} created', "result": serial.data}
+        return Response(response,status = status.HTTP_201_CREATED)
+  
+  
+  
 
+class NpProject(generics.CreateAPIView):
+  
+  serializer_class = NonProfitProjectSerializer
+  authentication_classes= (TokenAuthentication,)  
+  
+  def post(self, request):
+   
+    nonprofit = NonProfit.objects.get(id = request.data['nonprofit'])
+     
+    if request.data['atrocity'] or request.data['category']:
+      atrocity = Atrocity.objects.get(id = request.data['atrocity'])
+      category = Category.object.get(id = request.data['category'])
+      project = NonProfitProject.objects.create(nonprofit = nonprofit, atrocity =atrocity, category =category, title = request.data['title'], fundraising_goal = request.data['fundraisingGoal'], information = request.data['information'])
+      if project:
+        project.save()
+        serialized = NonProfitProjectSerializer(project)
+        response = { f'message': 'NonProfitPrject{project.title} created', 'result':  serialized.data}
+        return Response(response, status = status.HTTP_201_CREATED)
+    theproject = NonProfitProject.objects.create(nonprofit = nonprofit, title = request.data['title'], fundraising_goal = request.data['fundraisingGoal'], information = request.data['information'])
+    if theproject:
+      theproject.save()
+      serialized = NonProfitProjectSerializer(theproject)
+      response = { f'message': 'NonProfitPrject{project.title} created', 'result':  serialized.data}
+      return Response(response, status = status.HTTP_201_CREATED)
+    response = { 'message': 'Not Created'}  
+    Response(response, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+      
+      
+      
+  
+class ShirtVariation(APIView):
+  def get(self, shirt_id, **kwargs):
+    
+    color = self.request.GET.get('color')
+    variation = ShirtVariation.object.get(shirt_id = shirt_id, color_color = color)
+    serialized = ShirtVariationSerializer(variation)
+    return serialized.data
+  
+    
+        
+class ShirtVariationsList(viewsets.ModelViewSet):
+  permission_classes = []
+  serializer_class = ShirtVariationSerializer
+  queryset = ShirtVariations.objects.all()
+  
+  @action(detail=True, methods='get', )
+  def shirt(self, request, *args, **kwargs):
+    shirt = request.GET.get('shirt', None)
+    color = request.GET.get('color', None)
+    queryset = self.get_queryset().filter(shirt = shirt, color__color = color) 
+    serializer = ShirtVariationSerializer(queryset)
+    return serializer.data
       
 
 class RegisterNonProfit(generics.CreateAPIView):
   authentication_classes =(TokenAuthentication,)
   serializer_class = NonProfitSerializer
   def post(self, request):
-    serialized = NonProfitSerializer(data =request.data)
     profile = get_object_or_404(UserProfile, user = request.user)
-   
-
-    # serializer = NonProfitSerializer( name=name, vision_statement = vision, mission_statement= mission, 
-    # year_started = year_started, description = description, facebook = facebook, instagram = instagram, website_url = website )
-    if serialized.is_valid():
-      name = serialized.validated_data['name']
-      vision = serialized.validated_data['vision_statement']
-      mission = serialized.validated_data['mission_statement']
-      year_started = serialized.validated_data['year_started']
-      description = serialized.validated_data['description']
-      website= serialized.validated_data['website_url']
-      instagram = serialized.validated_data['instagram']
-      facebook = serialized.validated_data['facebook']
-      
-      np = NonProfit.objects.create(owner = profile, name = name ,
-      year_started = year_started, 
-      vision_statement = vision,mission_statement = mission, description = description, website_url = website, instagram = instagram, facebook =facebook,
-      slug = name)
-      np.save()
-      serializ = NonProfitSerializer(np)
-      response={'message': 'NonProfit Created','result': serializ.data}
-
-      return Response(response, status= status.HTTP_200_OK)
+    if profile.pk == request.data['owner']['user']:
+      serialized = NonProfit.objects.create(mission_statement = request.data['mission_statement'], name =request.data['name'], vision_statement =request.data['vision_statement'], year_started = request.data['year_started'], description = request.data['description'], website_url= request.data['website_url'], instagram = request.data['instagram'], facebook = request.data['facebook'], owner = profile )
+    if serialized:
+      profile.has_nonprofit = True
+      profile.save(update_fields=['has_nonprofit'])
+      serial = NonProfitSerializer(serialized)
+      response ={f'message':'NonProfit ${serialized.name} created', "result": serial.data}
+      return Response(response, status= status.HTTP_201_CREATED)
     return Response(serialized.errors)
   
        
@@ -555,22 +627,34 @@ class RegisterNonProfit(generics.CreateAPIView):
 class NonProfitList(viewsets.ModelViewSet):
   permission_classes = []
   serializer_class = NonProfitSerializer
-  queryset = NonProfit.objects.all()
-  
-
-class NPLists(generics.ListCreateAPIView):
   queryset= NonProfit.objects.all()
-  serializer_class = NonProfitSerializer
-  name  = 'nonprofit-list'
-  filter_fields=(
-    'category'
-  )
+  
+  @action(detail=False, methods=['get'])
+  def category(self, request, *args, **kwargs):
+    
+    category = request.GET.get('cat', None)
+    queryset = self.get_queryset().filter(category = category)
+    serializer = NonProfitSerializer(queryset, many=True)
+    return Response(data = serializer.data, )
+    
+    
+    
+  
   
 
 class AtrocityList(viewsets.ModelViewSet):
   permission_classes = []
   serializer_class = AtrocitySerializer
   queryset= Atrocity.objects.all()
+  
+  @action(detail = False, methods=['get'])
+  def category(self, request, *args, **kwargs):
+    cat = request.GET.get('cat', None)
+    queryset = self.get_queryset().filter(category = cat)
+    serializer = AtrocitySerializer(queryset, many = True)
+    return Response(data= serializer.data)
+    
+ 
 
 class CategoryList(viewsets.ModelViewSet):
   permission_classes = []
@@ -582,8 +666,13 @@ class RatingViewSet(viewsets.ModelViewSet):
   serializer_class = RatingSerializer
   authentication_classes = (TokenAuthentication, )
   
-
-
+class NonProfitByCategory(generics.ListAPIView):
+  permission_class = []
+  serializer_class = NonProfitSerializer
+  
+  def get_queryset(self):
+      return NonProfit.objects.filter(category= self.kwargs['pk'])
+    
 
 class PovertyShirts(generics.ListAPIView):
   permission_classes =[]

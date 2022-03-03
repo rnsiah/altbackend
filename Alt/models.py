@@ -249,6 +249,8 @@ class Shirt(models.Model):
     date_added= models.DateTimeField(auto_now_add=True)
     category = ForeignKey('Alt.Category', blank= True, on_delete=models.CASCADE, related_name='shirt')
     altrue_story = models.TextField(blank = True, null=True)
+    required_level = models.ForeignKey(AltrueLevel, blank =True, null = True, on_delete=models.CASCADE)
+
 
     @property
     def similar_shirts(self):
@@ -259,6 +261,7 @@ class Shirt(models.Model):
     def atrocityList(self):
         cat = self.category
         return Atrocity.objects.filter(category = cat)
+    
 
     def __str__(self):
         return self.name
@@ -383,9 +386,19 @@ class NonProfit(models.Model):
 
     def __str__(self):
         return self.name
-
     
+    def slugFormatter(self):
+        word = self.name
+        update = word.split()[0]
+        return update
 
+    def save(self, *args, **kwargs):
+        if self.slug is None:
+            slug = self.slugFormatter()
+            year = str(self.year_started)
+            self.slug = slug + year
+            super(NonProfit, self).save()
+        super(NonProfit,self).save()
     
 class OrderItem(models.Model):
     user = models.ForeignKey("api.UserProfile", on_delete=models.CASCADE)
@@ -520,7 +533,7 @@ class ForProfitCompany(models.Model):
     nonprofits = ManyToManyField(NonProfit,related_name='company_nonprofit', blank= True)
     atrocities = ManyToManyField(Atrocity, related_name ='company_atrocity', blank = True)
     year_started = models.CharField(max_length= 4, blank = False, null=False)
-    logo = models.CharField(max_length = 200, blank=True, null=True)
+    logo = models.CharField(max_length = 200, blank=True, null=True, default='https://i.ibb.co/yPCqbSG/altruecompany-placeholder.png')
     image = models.CharField(max_length = 200, blank=True, null=True)
     headquarters = models.CharField(max_length = 50,  blank= True, null= True)
     mission = models.CharField(max_length = 100, blank=True, null= True)
@@ -665,8 +678,8 @@ class CompanyDonation(models.Model):
 
 
 class NonProfitProject(models.Model):
-    nonprofit = models.ForeignKey('Alt.NonProfit', on_delete=models.CASCADE, related_name='np_project_nonprofit')
-    cause = models.ForeignKey('Alt.Category', on_delete=models.CASCADE, related_name='np_project_cause')
+    nonprofit = models.ForeignKey('Alt.NonProfit', on_delete=models.CASCADE, related_name='np_project_nonprofit', blank=True, null=True)
+    cause = models.ForeignKey('Alt.Category', on_delete=models.CASCADE, related_name='np_project_cause', blank = True, null=True)
     atrocity = models.ForeignKey('Alt.Atrocity', on_delete=models.CASCADE, related_name='np_project_atrocity', blank= True, null= True)
     title = models.CharField(max_length = 140, blank = True, null = True)
     information = models.TextField(blank = True, null = True)
@@ -677,7 +690,7 @@ class NonProfitProject(models.Model):
 
     def __str__(self):
         if self.title:
-            return self.title
+            return f'{self.nonprofit.name} : {self.title}'
         return self.nonprofit.name
        
     
@@ -742,6 +755,11 @@ def create_atrocity_account(sender, instance=None, created=False, **kwargs):
 
 @receiver([post_save, post_delete], sender= 'api.UserDonation')
 def updateBalancesFromUserDonation( instance, **kwargs):
+    
+    if instance.project:
+        project = NonProfitProject.objects.get(pk = instance.project.pk)
+        project.supporters.add(instance.user)
+        project.save()
     if instance.nonprofit:
         nonprof= NonProfitBalance.objects.get(nonprofit = instance.nonprofit)
         if instance.amount > 0:
@@ -773,7 +791,7 @@ def createNPRelationShipIfnotCreated(instance, created, **kwargs):
 
 
    
-    
+
     
 
 @receiver(post_save, sender ='api.CompanyMatchDonation')

@@ -71,7 +71,7 @@ class UserProfile(models.Model):
     is_nonprofitContributor= models.BooleanField(default= False)
     altrue_level= models.ForeignKey("Alt.AltrueLevel",  on_delete=models.CASCADE,null= True, blank = True)
     requirementsForNextLevel = models.ManyToManyField('Alt.AltrueAction', related_name='userprofile', blank=True)
-    
+    profiles_following = models.ManyToManyField('api.UserProfile' )
 
  
 
@@ -106,7 +106,8 @@ class UserProfile(models.Model):
             
 
         
-
+    
+        
     
 
     def get_absolute_url(self):
@@ -272,6 +273,7 @@ class UserDonation(models.Model):
     donation_type = models.CharField(max_length = 2, choices=DONATION_TYPE)
     is_matched =models.BooleanField(default = False)
     donation_date = models.DateTimeField(default=timezone.now)
+    project= models.ForeignKey('Alt.NonProfitProject', related_name='user_donation', on_delete=models.CASCADE, blank=True, null=True)
     
     
 
@@ -317,7 +319,28 @@ class Link(models.Model):
             return f'{self.publication} article on {self.company}'
         
         return self.link
+ 
+
     
+
+class NonProfitRequest(models.Model):
+    nonprofit = models.ForeignKey('Alt.NonProfit', related_name='request', on_delete=models.CASCADE)
+    company = models.ForeignKey('Alt.ForProfitCompany', related_name='request', on_delete=models.CASCADE)
+    request_message = models.TextField(blank = True, null = True)
+    
+
+    def __str__(self):
+        return f'{self.nonprofit.name} is requesting to be supported by {self.company.name}'
+
+
+class RequestVotes(models.Model):
+    id = models.IntegerField(primary_key=True, auto_created=True, editable=False)
+    user = models.ForeignKey('api.UserProfile', related_name='voter', on_delete=models.CASCADE )
+    np_request = models.ForeignKey('api.NonProfitRequest', related_name='voter', on_delete=models.CASCADE)
+    message = models.TextField(blank = True,  null = True)
+    
+    def __str__(self):
+        return str(self.id)
 
 
 

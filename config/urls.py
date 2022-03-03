@@ -21,6 +21,8 @@ from django.urls import path
 import Alt, StripeAPI
 from rest_framework.authtoken.views import obtain_auth_token
 from django.conf.urls.static import static
+from django.conf import settings
+from django.views.static import serve
 from django.contrib import admin
 
 
