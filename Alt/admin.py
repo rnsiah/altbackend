@@ -95,19 +95,26 @@ admin.site.register(CompanyNonProfitRelationship, CompanyNPRelationshipAdmin)
 
 
 class AltrueLevelAdmin(admin.ModelAdmin):
-    list_display = ('level_number', 'name')
+    list_display = ('level_number', 'name','minimum_points', 'maximum_points')
 admin.site.register(AltrueLevel, AltrueLevelAdmin)
 
 admin.site.register(UserAltrueAction)
 
 class AltrueActionAdmin(admin.ModelAdmin):
     model = AltrueAction
+    list_display = ('requirement', 'level_required', 'points_awarded')
     
-    def level1Required(self, obj):
-        pass
+    def level_required(self, obj):
+        level1 = AltrueLevel.objects.get(level_number =1)
+        level2 = AltrueLevel.objects.get(level_number =2)
+        if obj in level1.requiredActions.all():
+            return "Level 1"
+        elif obj in level2.requiredActions.all():
+            return "Level 2"
+        return 'No Level'
         
         
-admin.site.register(AltrueAction)
+admin.site.register(AltrueAction, AltrueActionAdmin)
 
 
 admin.site.register(ProfileImage)

@@ -738,8 +738,10 @@ def updateUserAccountBalance(instance, **kwargs):
     balance.save(update_fields=['balance'])
     
 
-
-
+@receiver(post_save, sender = AltrueAction)
+def levelNoneCheck(sender, instance, created=False, **kwargs):
+    if created and instance.altrue_level.level_number is 0:
+        print('about to check for')
 
 
 
