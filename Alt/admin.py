@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import CompanyBalance, CompanyDonation, NonProfitAtrocityRelationShip, NonProfitProject, CompanyAtrocityRelationship, CompanyNonProfitRelationship ,AtrocityShirt, Shirt, Atrocity, Category, NonProfit, Country, Rating, Order, OrderItem, CheckoutAddress, CompanyCoupon, CompanyStore, ForProfitCompany, AltrueAction, AltrueLevel, ShirtColor, ShirtSize, ShirtVariations, UserAltrueAction, FriendInvite, AltrueActionCode, ProfileImage
+from .models import CompanyBalance, CompanyDonation, CompanyProjectRelationShip, NonProfitAtrocityRelationShip, NonProfitProject, CompanyAtrocityRelationship, CompanyNonProfitRelationship ,AtrocityShirt, Shirt, Atrocity, Category, NonProfit, Country, Rating, Order, OrderItem, CheckoutAddress, CompanyCoupon, CompanyStore, ForProfitCompany, AltrueAction, AltrueLevel, ShirtColor, ShirtSize, ShirtVariations, UserAltrueAction, FriendInvite, AltrueActionCode, ProfileImage
 from Alt.models import AtrocityBalance, NonProfitBalance
 
 
@@ -49,13 +49,14 @@ class NonProfitBalanceAdmin(admin.ModelAdmin):
 admin.site.register(NonProfitBalance, NonProfitBalanceAdmin)
 
 class AtrocityBalanceAdmin(admin.ModelAdmin):
-    list_display = ('atrocity', 'balance', )
+    list_display = ('atrocity', 'balance','last_transaction' )
 admin.site.register(AtrocityBalance, AtrocityBalanceAdmin)
 
 
 admin.site.register(FriendInvite)
 
 
+admin.site.register(CompanyProjectRelationShip)
 
 # class CompanyAdmin(admin.ModelAdmin):
 #     list_display=('name',)
@@ -98,7 +99,17 @@ class AltrueLevelAdmin(admin.ModelAdmin):
 admin.site.register(AltrueLevel, AltrueLevelAdmin)
 
 admin.site.register(UserAltrueAction)
+
+class AltrueActionAdmin(admin.ModelAdmin):
+    model = AltrueAction
+    
+    def level1Required(self, obj):
+        pass
+        
+        
 admin.site.register(AltrueAction)
+
+
 admin.site.register(ProfileImage)
 
 

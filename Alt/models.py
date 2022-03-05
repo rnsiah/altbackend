@@ -53,9 +53,12 @@ class AltrueAction(models.Model):
 class UserAltrueAction(models.Model):
     profile_acting = models.ForeignKey("api.UserProfile", on_delete=models.CASCADE)
     altrue_action = models.ForeignKey('Alt.AltrueAction', blank=True, null=True, on_delete=models.CASCADE)
+    date_completed = models.DateField(auto_now_add=True)
 
     def __str__(self):
-        return  ' awarded to ' +self.profile_acting.user.email+ ' for ' 
+        if self.altrue_action is None:
+            return 'awarded to {} for ?'.format(self.profile_acting)
+        return  ' awarded to {} for {}'.format(self.profile_acting.user.email, self.altrue_action.requirement) 
     
 
 class AltruePointPromotion(models.Model):
@@ -410,7 +413,7 @@ class OrderItem(models.Model):
 
     
     def __str__(self):
-        return f'{self.quantity} of {self.ordered_shirt.name}'
+        return '{} of {}'.format(self.quantity, self.ordered_shirt.name)
 
 
     def get_total_shirt_price(self):
@@ -468,6 +471,7 @@ class CheckoutAddress(models.Model):
 class NonProfitBalance(models.Model):
     nonprofit= models.OneToOneField(NonProfit, on_delete=models.CASCADE, related_name='balance')
     balance = models.DecimalField(decimal_places=2, max_digits=10, default=0)
+    updated_at = models.DateField(auto_now=True)
    
     
     # def update_balace(self, amount):
@@ -614,6 +618,7 @@ class CompanyNonProfitRelationship(models.Model):
     match_level = models.IntegerField(choices=MATCH_PERCENTAGE)
     total_raised = models.FloatField(default=0, null=True, blank= True)
     funding_limit = models.FloatField(default=0, null=True, blank=True )
+    completed = models.BooleanField(default= False, blank = True)
 
     
     
@@ -623,7 +628,7 @@ class CompanyNonProfitRelationship(models.Model):
         verbose_name_plural =("CompanyNonProfitRelationships")
 
     def __str__(self):
-        return f'{self.company.name} matches {self.match_level}% for donations to {self.nonprofit.name}'
+        return '{} matches {}%% for donations to {}'.format(self.company.name, self.match_level, self.nonprofit.name)
 
     def get_absolute_url(self):
         return reverse("CompanyNonProfitRelationship_detail", kwargs={"pk": self.pk})
@@ -642,6 +647,7 @@ class CompanyAtrocityRelationship(models.Model):
     match_level = models.IntegerField(choices=MATCH_PERCENTAGE)
     total_raised = models.FloatField(default = 0, blank= True, null= True)
     funding_limit = models.FloatField(blank=True, null=True, default=0)
+    completed = models.BooleanField(default = False, blank =True)
     
 
     class Meta:
@@ -649,10 +655,28 @@ class CompanyAtrocityRelationship(models.Model):
         verbose_name_plural = ("CompanyAtrocityRelationships")
 
     def __str__(self):
-        return f'{self.company.name} matches {self.match_level}% for donations to {self.atrocity.title}'
+        return '{} matches {}"%" for donations to {}'.format(self.company.name, self.match_level, self.atrocity.title)
 
     def get_absolute_url(self):
         return reverse("CompanyAtrocityRelationship_detail", kwargs={"pk": self.pk})
+    
+class CompanyProjectRelationShip(models.Model):
+    MATCH_PERCENTAGE =(
+        (10, 'Ten Percent'),
+        (25, 'Twenty Five Percent'),
+        (50, 'Fifty Percent'),
+        (100, 'Full Match')
+    )
+    company = models.ForeignKey('Alt.ForProfitCompany', related_name='project_match_company', on_delete=models.CASCADE)
+    project =  models.ForeignKey('Alt.NonProfitProject', related_name='project_match', on_delete=models.CASCADE)
+    match_level = models.IntegerField(choices=MATCH_PERCENTAGE)
+    total_raised = models.FloatField(default = 0, blank= True, null= True)
+    funding_limit = models.FloatField(blank=True, null=True, default=0)
+    completed = models.BooleanField(default = False, blank=True)
+    
+    def __str__(self):
+        return '{} matches {}"%" for donations to {}'.format(self.company.name, self.match_level, self.project.title)
+
  
 class CompanyBalance(models.Model):
     company = models.OneToOneField("Alt.ForProfitCompany",  on_delete=models.CASCADE) 
@@ -670,10 +694,16 @@ class CompanyDonation(models.Model):
     amount = models.DecimalField( max_digits=6, decimal_places=2)
     nonprofit = models.ForeignKey('Alt.NonProfit', blank= True, null = True, on_delete=models.CASCADE, related_name = 'company_donation_nonprofit')
     atrocity = models.ForeignKey('Alt.Atrocity', blank=True, null=True, on_delete=models.CASCADE, related_name='company_donation_atrocity')
+    project = models.ForeignKey('Alt.NonProfitProject', blank =True, null= True, on_delete = models.CASCADE, related_name= 'company_donation')
     donation_date = models.DateTimeField( auto_now_add=True, null=False, blank=False)
     
     def __str__(self):
-        return self.company.name
+        if self.nonprofit:
+            return '{} donates {} to {}'.format(self.company.name, self.amount, self.nonprofit.name)
+        elif self.atrocity:
+            return '{} donates {} to {}'.format(self.company.name, self.amount, self.atrocity.title)
+        elif self.project:
+            return '{} donates to {} to {}'.format(self.company.name, self.amount, self.project.title)
     
 
 
@@ -684,19 +714,30 @@ class NonProfitProject(models.Model):
     title = models.CharField(max_length = 140, blank = True, null = True)
     information = models.TextField(blank = True, null = True)
     fundraising_goal = models.IntegerField()
+    total_raised = models.DecimalField(decimal_places=2, max_digits=9, default=0)
     followers = models.ManyToManyField('api.UserProfile', related_name='np_project_followers' , blank = True)
     supporters = models.ManyToManyField('api.UserProfile', related_name='np_project_supporters', blank = True)
+    is_active = models.BooleanField(default=True)
 
 
     def __str__(self):
         if self.title:
-            return f'{self.nonprofit.name} : {self.title}'
+            return '{} : {}'.format(self.nonprofit.name, self.title)
         return self.nonprofit.name
        
     
     def get_absolute_url(self):
         return reverse("NonProfitProject_detail", kwargs={"pk": self.pk})
     
+    def makeInactive(self):
+        if self.is_active == True and self.total_raised >= self.fundraising_goal:
+            self.is_active = False
+        pass
+    
+    def save(self, *args, **kwargs):
+        self.makeInactive()
+        super(NonProfitProject, self).save()
+            
         
 
 class NonProfitAtrocityRelationShip(models.Model):
@@ -707,8 +748,8 @@ class NonProfitAtrocityRelationShip(models.Model):
 
     def __str__(self):
         if self.projects:
-            return f'{self.nonprofit.name} is working on {len(self.projects.all())} to help {self.atrocity}'
-        return  f'{self.nonprofit.name} is working to help {self.atrocity.title}'
+            return '{} is working on {} project to help {}'.format(self.nonprofit.name, len(self.projects.all()), self.atrocity)
+        return  '{} is working to help {}'.format(self.nonprofit.name, self.atrocity.title)
     
     def get_absolute_url(self):
         return reverse("NonProfitAtrocityRelationship_detail", kwargs={"pk": self.pk})
@@ -795,13 +836,42 @@ def createNPRelationShipIfnotCreated(instance, created, **kwargs):
     
 
 @receiver(post_save, sender ='api.CompanyMatchDonation')
-def updateTotal(instance, created = False, **kwargs):
+def updateTotal(instance, created = True, **kwargs):
     if created:
-        if instance.nonprofit:
+        
+        if instance.project!= None:
+            co = ForProfitCompany.objects.get(pk =instance.company_id)
+            wallet = CompanyBalance.objects.get(company =co)
+            amount = float(instance.amount)
+            new_company_wallet_amount = float(wallet.balance) - amount
+            wallet.balance = new_company_wallet_amount
+            wallet.save(update_fields=['balance']) 
+            
+            try:
+                com = CompanyNonProfitRelationship.objects.get(company = instance.company, nonprofit =instance.nonprofit)
+                np = com.np
+                np_balance = NonProfitBalance.objects.get(nonprofit = np)
+                np_balance.balance = np_balance.balance + amount
+                np_balance.save()
+                updated_total = float(instance.amount) + com.total_raised
+                com.total_raised = updated_total
+                com.save(update_fields=['total_raised'])
+                
+                
+                proRelationShip = CompanyProjectRelationShip.objects.get(company=instance.coompany, project = instance.project)
+                proRelationShip.total_raised = proRelationShip.total_raised + instance.amount
+                proRelationShip.save()
+                
+                
+               
+              
+            except: ObjectDoesNotExist
+
+        if instance.nonprofit != None:
             co = ForProfitCompany.objects.get(pk =instance.company_id)
             wallet = CompanyBalance.objects.get(company =co)
 
-            CompanyDonation.objects.create(amount= instance.amount, nonprofit = instance.nonprofit, company = instance.company, wallet = wallet)
+            # CompanyDonation.objects.create(amount= instance.amount, nonprofit = instance.nonprofit, company = instance.company, wallet = wallet)
             amount = float(instance.amount)
             new_company_wallet_amount = float(wallet.balance) - amount
             wallet.balance = new_company_wallet_amount
@@ -809,21 +879,29 @@ def updateTotal(instance, created = False, **kwargs):
            
             try:
                 com = CompanyNonProfitRelationship.objects.get(company = instance.company, nonprofit =instance.nonprofit)
+                nonprof = com.nonprofit
+                balance = NonProfitBalance.objects.get(nonprofit = nonprof)
+                balance.balance = float(balance.balance) + amount
+                balance.save()
                 updated_total = float(instance.amount) + com.total_raised
                 com.total_raised = updated_total
                 com.save(update_fields=['total_raised'])
               
             except: ObjectDoesNotExist
-        elif instance.atrocity:
+        elif instance.atrocity != None:
             cos = ForProfitCompany.objects.get(pk =instance.company_id)
             wallet = CompanyBalance.objects.get(company=cos)
-            CompanyDonation.objects.create(amount= instance.amount, nonprofit = instance.nonprofit, company = instance.company, wallet = wallet)
+            # CompanyDonation.objects.create(amount= instance.amount, nonprofit = instance.nonprofit, company = instance.company, wallet = wallet)
             amount = float(instance.amount)
             new_company_wallet_amount = float(wallet.balance) - amount
             wallet.balance = new_company_wallet_amount
             wallet.save(update_fields=['balance']) 
             try:
                 co = CompanyAtrocityRelationship.objects.get(company = instance.company, atrocity = instance.atrocity)
+                atroc = co.atrocity
+                balance = AtrocityBalance.objects.get(atrocity = atroc)
+                balance.balance = balance.balance + amount
+                balance.save()
                 updated_tot = float(instance.amount) + co.total_raised
                 co.total_raised = updated_tot
                 co.save(update_fields=['total_raised'])

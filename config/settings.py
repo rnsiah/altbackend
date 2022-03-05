@@ -166,7 +166,7 @@ STATIC_URL = '/static/'
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')] 
 
 
-MEDIA_ROOT = os.path.join(os.path.dirname(BASE_DIR), "media_root")
+MEDIA_ROOT = os.path.join(os.path.dirname(BASE_DIR), "media_root/")
 MEDIA_URL = '/media/'
 
 AUTH_USER_MODEL = 'api.User'
@@ -175,7 +175,7 @@ AUTH_PROFILE_MODEL = 'api.UserProfile'
 CORS_ALLOWED_ORIGINS = [
     
     "http://localhost:8080",
-   
+   "http://10.0.0.238:8000",
 ]
 
 STRIPE_SECRET_KEY ='sk_test_g3VXQt3Thc8sUCGp182ybZmN'

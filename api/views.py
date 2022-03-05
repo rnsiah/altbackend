@@ -94,7 +94,7 @@ class UserProfileView(viewsets.ModelViewSet):
           profile.profiles_following.add(profile_to_follow)
           profile.save()
           serialized = ProfileRepSerializer(profile.profiles_following, many = True)
-          response = {'message': f'Now Following {profile_to_follow.username}'},serialized.data
+          response = {'message': 'Now Following {}'.format(profile_to_follow.username)},serialized.data
 
           return Response(response, status=status.HTTP_200_OK )
         else:
@@ -108,7 +108,7 @@ class UserProfileView(viewsets.ModelViewSet):
         profile.profiles_following.remove(profile_to_follow)
         profile.save()
         serialized = ProfileRepSerializer(profile.profiles_following, many = True)
-        response ={'message': f'You have just unfollowed {profile_to_follow.username}',
+        response ={'message': 'You have just unfollowed {}'.format(profile_to_follow.username),
                    }, serialized.data
         return Response(response, status =status.HTTP_201_CREATED)
       except:
@@ -489,7 +489,7 @@ class ShirtList(viewsets.ModelViewSet):
 
   
 class CompanyList(viewsets.ModelViewSet):
-  authentication_classes = (TokenAuthentication, )
+  permission_classes=[]
   
   serializer_class = ForProfitCompanySerializer
   queryset = ForProfitCompany.objects.all()
@@ -546,7 +546,7 @@ class  RegisterCompany(generics.CreateAPIView):
         profile.has_company = True
         profile.save(update_fields =['has_company'])
         serial = ForProfitCompanySerializer(serialized)
-        response ={f'message':'Company {serial.name} created', "result": serial.data}
+        response ={'message':'Company {} created'.format(serial.name), "result": serial.data}
         return Response(response,status = status.HTTP_201_CREATED)
   
   
@@ -568,13 +568,13 @@ class NpProject(generics.CreateAPIView):
       if project:
         project.save()
         serialized = NonProfitProjectSerializer(project)
-        response = { f'message': 'NonProfitPrject{project.title} created', 'result':  serialized.data}
+        response = { 'message': 'NonProfitPrject{} created'.format(project.title), 'result':  serialized.data}
         return Response(response, status = status.HTTP_201_CREATED)
     theproject = NonProfitProject.objects.create(nonprofit = nonprofit, title = request.data['title'], fundraising_goal = request.data['fundraisingGoal'], information = request.data['information'])
     if theproject:
       theproject.save()
       serialized = NonProfitProjectSerializer(theproject)
-      response = { f'message': 'NonProfitPrject{project.title} created', 'result':  serialized.data}
+      response = { 'message': 'NonProfitPrject{} created'.format(project.title), 'result':  serialized.data}
       return Response(response, status = status.HTTP_201_CREATED)
     response = { 'message': 'Not Created'}  
     Response(response, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -617,7 +617,7 @@ class RegisterNonProfit(generics.CreateAPIView):
       profile.has_nonprofit = True
       profile.save(update_fields=['has_nonprofit'])
       serial = NonProfitSerializer(serialized)
-      response ={f'message':'NonProfit ${serialized.name} created', "result": serial.data}
+      response ={'message':'NonProfit ${} created'.format(serialized.name), "result": serial.data}
       return Response(response, status= status.HTTP_201_CREATED)
     return Response(serialized.errors)
   
@@ -633,7 +633,8 @@ class NonProfitList(viewsets.ModelViewSet):
   def category(self, request, *args, **kwargs):
     
     category = request.GET.get('cat', None)
-    queryset = self.get_queryset().filter(category = category)
+    queryset = self.get_queryset().filter(category = category).order_by('-id')
+
     serializer = NonProfitSerializer(queryset, many=True)
     return Response(data = serializer.data, )
     
@@ -645,7 +646,7 @@ class NonProfitList(viewsets.ModelViewSet):
 class AtrocityList(viewsets.ModelViewSet):
   permission_classes = []
   serializer_class = AtrocitySerializer
-  queryset= Atrocity.objects.all()
+  queryset= Atrocity.objects.all().order_by('-id')
   
   @action(detail = False, methods=['get'])
   def category(self, request, *args, **kwargs):
@@ -660,7 +661,7 @@ class CategoryList(viewsets.ModelViewSet):
   permission_classes = []
   serializer_class = CategorySerializer
   queryset= Category.objects.all()
-
+  
 class RatingViewSet(viewsets.ModelViewSet):
   queryset = Rating.objects.all()
   serializer_class = RatingSerializer
@@ -671,7 +672,8 @@ class NonProfitByCategory(generics.ListAPIView):
   serializer_class = NonProfitSerializer
   
   def get_queryset(self):
-      return NonProfit.objects.filter(category= self.kwargs['pk'])
+      return NonProfit.objects.filter(category= self.kwargs['pk']).order_by('-id')
+
     
 
 class PovertyShirts(generics.ListAPIView):
@@ -679,19 +681,22 @@ class PovertyShirts(generics.ListAPIView):
   serializer_class = ShirtSerializer
 
   def get_queryset(self):
-    return Shirt.objects.filter(category_id= 3)
+    return Shirt.objects.filter(category_id= 3).order_by('-id')
+
 
 class RefugeeShirts(generics.ListAPIView):
   permission_classes=[]
   serializer_class = ShirtSerializer
   def get_queryset(self):
-      return Shirt.objects.filter(category_id = 2)
+      return Shirt.objects.filter(category_id = 2).order_by('-id')
+
   
 class WorldHungerShirts(generics.ListAPIView):
   permission_classes = []
   serializer_class = ShirtSerializer
   def get_queryset(self):
-    return Shirt.objects.filter(category_id =1)
+    return Shirt.objects.filter(category_id =1).order_by('-id')
+
 
 
 class FeaturedShirts(generics.ListAPIView):
@@ -699,7 +704,7 @@ class FeaturedShirts(generics.ListAPIView):
   serializer_class = ShirtSerializer
   
   def get_queryset(self):
-    return Shirt.objects.filter(featured = True)
+    return Shirt.objects.filter(featured = True).order_by('-id')
 
 
 class FeaturedAtrocities(generics.ListAPIView):
@@ -707,8 +712,7 @@ class FeaturedAtrocities(generics.ListAPIView):
   serializer_class = AtrocitySerializer
   
   def get_queryset(self):
-    return Atrocity.objects.filter(featured = True)
-
+    return Atrocity.objects.filter(featured = True).order_by('-id')
 
 
 
@@ -723,7 +727,8 @@ class FeaturedNonProfits(generics.ListAPIView):
   serializer_class = NonProfitSerializer
   
   def get_queryset(self):
-    return NonProfit.objects.filter(featured = True)
+    return NonProfit.objects.filter(featured = True).order_by('-id')
+
 
 
 class UserOrder(viewsets.ModelViewSet):
@@ -735,7 +740,8 @@ class UserOrder(viewsets.ModelViewSet):
   def get_cart(self, request, *args, **kwargs):
     user = request.user
     profile = UserProfile.objects.get(user = user)
-    cart = Order.objects.filter(completed = False, user = profile).latest()
+    cart = Order.objects.filter(completed = False, user = profile).order_by('-id')
+
     return cart
 
 
@@ -773,7 +779,7 @@ class AllUserCompletedOrders(generics.ListAPIView):
   
   def get_queryset(self):
     user = self.request.user.profile
-    return Order.objects.filter(user = user)
+    return Order.objects.filter(user = user).order_by('-id')
 
 
 
@@ -792,7 +798,8 @@ class UserFollowerDonations(APIView):
         userprofile = UserProfile.objects.filter(user = profile)
         followers = userprofile.following.all()
         for follower in followers:
-          donations = UserDonation.objects.filter(user = follower)
+          donations = UserDonation.objects.filter(user = follower).order_by('-id')
+
           for donation in donations:
             if donation.nonprofit is nonprofit:
               friend_list.append(follower)
@@ -803,7 +810,7 @@ class UserFollowerDonations(APIView):
 
   
   
-  
+
 
   
    

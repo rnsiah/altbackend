@@ -17,7 +17,7 @@ from io import BytesIO
 from io import StringIO
 from django.core.files.uploadedfile import InMemoryUploadedFile
 import Alt
-from Alt.models import AltrueAction, AltrueActionCode, AltrueLevel, Atrocity, AtrocityBalance, CompanyAtrocityRelationship, CompanyBalance, CompanyDonation, CompanyNonProfitRelationship, ForProfitCompany, FriendInvite, NonProfit, NonProfitBalance, UserAltrueAction, ProfileImage
+from Alt.models import AltrueAction, AltrueActionCode, AltrueLevel, Atrocity, AtrocityBalance, CompanyAtrocityRelationship, CompanyBalance, CompanyDonation, CompanyNonProfitRelationship, CompanyProjectRelationShip, ForProfitCompany, FriendInvite, NonProfit, NonProfitBalance, NonProfitProject, UserAltrueAction, ProfileImage
 from django.core.exceptions import ObjectDoesNotExist
 import decimal
 from django.utils import timezone
@@ -32,11 +32,20 @@ class User(AbstractUser):
     username = models.CharField(max_length=100, blank = True, null=True)
     email = models.EmailField(_('email address'), unique=True)
     profile_created = models.BooleanField(default=False)
+    
+    
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']
     def __str__(self):
         return str(self.email)
+    
+    @property
+    def altrue_level(self):
+        profile = UserProfile.objects.get(user= self)
+        if not profile.altrue_level:
+            return 'Null'
+        return profile.altrue_level
 
 
 
@@ -44,6 +53,8 @@ class User(AbstractUser):
 
 def upload_path_handler():
     return None
+
+
 
 
 
@@ -105,9 +116,47 @@ class UserProfile(models.Model):
         return follow_list
             
 
+    def setfirstLevel(self):
+        levelo = AltrueLevel.objects.get(level_number =0)
+        self.altrue_level = levelo
         
     
+    
+    
+    def startAltrueLevel(self):
+        if self.altrue_level is None:
+            self.setfirstLevel()
+            
+            levlone =AltrueLevel.objects.get(level_number= 1)
+            requirements = levlone.requiredActions.all()
+            reqs_needed = []
+            for requirement in requirements:
+                action =AltrueAction.objects.get(id =requirement.id)
+                reqs_needed.append(action)
+            for reqs in reqs_needed:
+                self.requirementsForNextLevel.add(reqs) 
+        else:
+            pass
+                    
+                    
+        # else:
+        #     level = self.altrue_level.level_number
+        #     nextLevel = AltrueLevel.objects.get(level_number = level+1)
+        #     requirements  = nextLevel.requiredActions.all()
+        #     reqs_needed =[]
+        #     for requirement in requirements:
+        #         action = AltrueAction.objects.get(id = requirement.id)
+        #         reqs_needed.append(action)
+        #     for reqs in reqs_needed:
+        #         self.requirementsForNextLevel.add(reqs)
+                
+        #     pass
+        # pass
         
+    
+     
+            
+            
     
 
     def get_absolute_url(self):
@@ -122,7 +171,7 @@ class UserProfile(models.Model):
         return str(self.username)
 
     def get_webUrl(self):
-        user_site = f' www.altrueglobal/user/{self.get_userName()}' 
+        user_site = ' www.altrueglobal/user/'+self.get_userName() 
         return str(user_site)
 
     def check_if_userNamechanged(self):
@@ -143,6 +192,7 @@ class UserProfile(models.Model):
     #         self.profile_picture.save(file_name, django_file, save=False)
 
     def save(self, *args, **kwargs):
+        
         
         self.slug = self.username
         self.generate_qr()
@@ -174,7 +224,7 @@ class UserProfile(models.Model):
             box_size=6,
             border=0,
         )
-        qr.add_data(f'www.altrueglobal.org/true/{self.get_userName()}')
+        qr.add_data('www.altrueglobal.org/true/'+self.get_userName())
         qr.make(fit =True)
         filename = 'qr-%s.png' % (self.get_userName())
         img= qr.make_image()
@@ -187,9 +237,10 @@ class UserProfile(models.Model):
 
 
 
+
 class Balance(models.Model):
     account = models.OneToOneField('api.UserProfile', on_delete=models.CASCADE, primary_key=True, related_name='balance')
-    balance = models.DecimalField(decimal_places = 2, max_digits=4 ,default = 0)
+    balance = models.DecimalField(decimal_places = 2, max_digits=6 ,default = 0)
     last_transaction = models.DateTimeField(default=timezone.now) 
 
 
@@ -215,7 +266,7 @@ class AltruePoints(models.Model):
     last_transaction = models.DateTimeField( default=timezone.now)
 
     def __str__(self):
-        return self.account.user.email
+        return str(self.balance)
     def get_absolute_url(self):
         return reverse("altrue_points_detail", kwargs={"pk": self.pk})
     
@@ -267,7 +318,7 @@ class UserDonation(models.Model):
         ('MU', 'Multiple Orgnanizations'))
     user = models.ForeignKey('api.UserProfile', on_delete=models.CASCADE, related_name='user_donation')
     wallet = models.ForeignKey('api.Balance', on_delete=models.CASCADE, related_name = 'user_donationc')
-    amount = models.DecimalField( max_digits=3, decimal_places=2)
+    amount = models.DecimalField( max_digits=5, decimal_places=2)
     nonprofit = models.ForeignKey('Alt.NonProfit', related_name='user_donation', blank= True, null = True, on_delete=models.CASCADE)
     atrocity = models.ForeignKey('Alt.Atrocity', blank=True, null=True, on_delete=models.CASCADE, related_name='user_donation')
     donation_type = models.CharField(max_length = 2, choices=DONATION_TYPE)
@@ -286,15 +337,18 @@ class UserDonation(models.Model):
 class CompanyMatchDonation(models.Model):
 
     company = models.ForeignKey("Alt.ForProfitCompany", on_delete=models.CASCADE)
-    amount = models.DecimalField(max_digits=3, decimal_places=2)
-    nonprofit = models.ForeignKey('Alt.NonProfit', related_name='company_donation', blank=True, null=True, on_delete=models.CASCADE)
+    amount = models.DecimalField(max_digits=5, decimal_places=2)
+    nonprofit = models.ForeignKey('Alt.NonProfit', related_name='company_match_donation', blank=True, null=True, on_delete=models.CASCADE)
     atrocity = models.ForeignKey("Alt.Atrocity", on_delete=models.CASCADE, blank= True, null=True)
-    user_matched = models.ForeignKey('api.UserDonation', on_delete=models.CASCADE, blank=True, null=True)
+    transaction_matched = models.ForeignKey('api.UserDonation', on_delete=models.CASCADE, related_name='company_match_donation',blank=True, null=True)
     donation_date= models.DateTimeField(default=timezone.now)
+    project =  models.ForeignKey('Alt.NonProfitProject', related_name='company_match_donation', on_delete=models.CASCADE, blank= True, null =True)
+    
+    
 
 
     def __str__(self):
-        return str(self.amount)
+        return '{} matched {} for {}'.format(self.company.name, self.transaction_matched.username, self.amount)
     
 # class CompanyNewsUpdate(models.Model):
 #     company = models.ForeignKey("Alt.ForProfitCompany", on_delete=models.CASCADE, related_name='companyupdate')
@@ -312,11 +366,11 @@ class Link(models.Model):
 
     def __str__(self):
         if(self.atrocity and self.publication):
-            return f'{self.publication} article on {self.atrocity}'
+            return '{} article on {}'.format(self.publication, self.atrocity)
         elif(self.nonprofit and self.publication):
-            return f'{self.publication} article on {self.nonprofit}'
+            return '{} article on {}'.format(self.publication, self.nonprofit)
         elif(self.company and self.publication):
-            return f'{self.publication} article on {self.company}'
+            return '{} article on {}'.format(self.publication, self.company)
         
         return self.link
  
@@ -330,7 +384,7 @@ class NonProfitRequest(models.Model):
     
 
     def __str__(self):
-        return f'{self.nonprofit.name} is requesting to be supported by {self.company.name}'
+        return '{} is requesting to be supported by {}'.format(self.nonprofit.name, self.company.name)
 
 
 class RequestVotes(models.Model):
@@ -344,45 +398,231 @@ class RequestVotes(models.Model):
 
 
 
+
+
+
+
+
+
+
+# Creates UserProfile when new user is registered onto platform
+@receiver(post_save, sender=settings.AUTH_USER_MODEL)
+def create_userProfile(sender, instance, created=True, **kwargs):
+    if created:
+        love = UserProfile.objects.create(user = instance)
+        love.save()
+        Balance.objects.create(account = love)
+        AltruePoints.objects.create(account = love)
+        love.setfirstLevel()
+        levlone =AltrueLevel.objects.get(level_number= 1)
+        requirements = levlone.requiredActions.all()
+        reqs_needed = []
+        for requirement in requirements:
+            action =AltrueAction.objects.get(id =requirement.id)
+            reqs_needed.append(action)
+        for reqs in reqs_needed:
+            love.requirementsForNextLevel.add(reqs)
+        love.save() 
+        
+        
+        
+        
+
+
+
+@receiver(post_save, sender=settings.AUTH_USER_MODEL, dispatch_uid= 'update_profile')
+def save_user_profile(sender, instance, **kwargs):
+    pass    
+
+    
+
+@receiver(post_save, sender=settings.AUTH_USER_MODEL)
+def create_auth_token(sender, instance=None, created=False, **kwargs):
+    if created:
+        Token.objects.create(user=instance) 
+
+
+
+#Creates a wallet for donations when profile is created
+# @receiver(post_save, sender = UserProfile)
+# def createAccount(sender, instance, created=False, **kwargs):
+#     if created:
+#         Balance.objects.create(account = instance)
+#         AltruePoints.objects.create(account = instance)
+        
+       
+
+
+@receiver(post_save, sender = UserProfile, dispatch_uid ='save username')
+def profile_updated(sender, instance, created=True,  **kwargs):
+        if not created:
+            user = User.objects.get(pk = instance.pk)
+            if instance.username is not None:
+                user.username = instance.username
+                user.profile_created = True
+                user.save()
+                pass             
+            else: 
+                pass
+          
+        else: pass        
+                
+                
+               
+
+    
+
+
+
+
 @receiver(post_save, sender= UserDonation)
-def matchUserCompanyDonation(sender, instance, created=False, **kwargs):
+def matchUserCompanyDonation(sender, instance, created=True, **kwargs):
     if created and instance.is_matched is True:
         if instance.nonprofit:
+            #find nonprofit that was donated to
             nonProfitDonatedTo = NonProfit.objects.get(id= instance.nonprofit.id)
-            companies = ForProfitCompany.objects.filter(nonprofits = nonProfitDonatedTo)
+            
+            companies =[]
+            cos = CompanyNonProfitRelationship.objects.filter(nonprofit = nonProfitDonatedTo)
+            for co in cos:
+                companies.append(co.company)
+                
             for company in companies:
                 try:
+                    #find amount from relationship to be donated
+                    theMatch = CompanyNonProfitRelationship.objects.get(nonprofit = nonProfitDonatedTo, company =company)
+                    prior_donations = CompanyMatchDonation.objects.filter(nonprofit=nonProfitDonatedTo, company =company)
+                    nonMatchedDonationsToNonProfit = CompanyDonation.objects.filter(company =company, nonprofit = nonProfitDonatedTo)
                     
-                    match = CompanyNonProfitRelationship.objects.get(nonprofit = nonProfitDonatedTo, company =company)
-                    decimaled_match = float(match.match_level)
+                    alldonations = []
+                    donList = []
+                    for donation in prior_donations:
+                        alldonations.append(donation.amount)
+                    total_donations = sum(alldonations)
+                
+
+                    for don in nonMatchedDonationsToNonProfit:
+                        donList.append(don.amount)
+                
+                    totalDons = sum(donList) + total_donations
+                    
+                    decimaled_match = float(theMatch.match_level)
                     match = decimaled_match /100
                     matched_amount  = float(instance.amount) * match
                     final = float(matched_amount)
-                    np_balance = NonProfitBalance.objects.get(nonprofit= nonProfitDonatedTo)
+                    difference = float(theMatch.funding_limit ) - float(totalDons)
+                     
                     
-                    CompanyMatchDonation.objects.create(nonprofit = nonProfitDonatedTo, company= company, user_matched = instance, amount = str(final) )
-                    new_np_balance = float(np_balance.balance)+ final
-                    np_balance.balance =float(new_np_balance)
-                    np_balance.save()                    
-                    # instance.save(is_matched =True)
+                    if totalDons< theMatch.funding_limit and final < difference:
+                        CompanyMatchDonation.objects.create(company = company, nonprofit=nonProfitDonatedTo, transaction_matched = instance, amount = final)
+                    elif totalDons<theMatch.funding_limit and final>difference:
+                        CompanyMatchDonation.objects.create(company = company, nonprofit = nonProfitDonatedTo, transaction_matched = instance, amount = difference)
                 except ObjectDoesNotExist:
-                  pass
-        elif instance.atrocity:
-            atrocityDonatedTo = Atrocity.objects.get(id=instance.atrocity.id)
-            comp= ForProfitCompany.objects.filter(atrocities = atrocityDonatedTo)
-            for co in comp:
+                    pass
+                    
+        elif instance.project:
+            theproject = NonProfitProject.objects.get(id = instance.project.id)
+            nonprofit = NonProfit.objects.get(id = theproject.nonprofit.id)
+            companies = ForProfitCompany.objects.filter(nonprofits = nonprofit)
+            # npBalance = NonProfitBalance.objects.get(nonprofit = nonprofit)
+            companies =[]
+            compan = CompanyProjectRelationShip.objects.filter(project = theproject)
+            for co in compan:
+                companies.append(co.company)
+            for company in companies:
                 try:
-                    mat = CompanyAtrocityRelationship.objects.get(atrocity = atrocityDonatedTo, company= co)
+                    #find amount from relationship to be donated
+                    match = CompanyNonProfitRelationship.objects.get(nonprofit = nonprofit, company =company)
+                    projectRelationShip = CompanyProjectRelationShip.objects.get(company= company, project = theproject) 
+                    #check all donations to this relationship and get sum to make sure  not past the limit
+                    prior_donations = CompanyMatchDonation.objects.filter(project = theproject, company =company)
+                    nonMatchedDonationsToNonProfit = CompanyDonation.objects.filter(company =company, nonprofit = nonprofit)
+                    
+                    alldonations = []
+                    donList = []
+                    for donation in prior_donations:
+                        alldonations.append(donation.amount)
+                    total_donations = sum(alldonations)
+                
+                
+                    for don in nonMatchedDonationsToNonProfit:
+                        donList.append(don.amount)
+                
+                    totalDons = sum(donList) + total_donations
+                    
+                    
+                    decimaled_match = float(projectRelationShip.match_level)
+                    match = decimaled_match /100
+                    matched_amount  = float(instance.amount) * match
+                    final = float(matched_amount)
+                    differenceProject = float(theproject.fundraising_goal - theproject.total_raised)
+                    differenceNP = projectRelationShip.funding_limit - totalDons
+                    
+                    
+              
+                    #update totalraised for project and make sure we dont overfund
+                    #check if under the limit for organization and limit for project:
+                    if theproject.is_active == True and final<differenceNP and final< differenceProject :
+                        try:
+                            CompanyMatchDonation.objects.create(project = theproject, company= company, transaction_matched = instance, amount =final )
+                   
+                        except ObjectDoesNotExist:
+                            pass
+                      
+                    elif theproject.is_active == True and final<differenceNP and final>differenceProject:
+                        try:
+                            CompanyMatchDonation.objects.create(project = theproject, company= company, transaction_matched = instance, amount =differenceProject )
+                   
+                        except ObjectDoesNotExist:
+                            pass
+                      
+                    elif theproject.is_active == True and final>differenceNP and final<differenceProject:
+                        try:
+                            CompanyMatchDonation.objects.create(project = theproject, company= company, transaction_matched = instance, amount =differenceNP )
+                   
+                        except ObjectDoesNotExist:
+                            pass
+
+                   
+                except ObjectDoesNotExist:
+                    pass
+        elif instance.atrocity:
+            companies = []
+            atrocityDonatedTo = Atrocity.objects.get(id=instance.atrocity.id)
+            comp= CompanyAtrocityRelationship.objects.filter(atrocity = atrocityDonatedTo)
+            for co in comp:
+                companies.append(co.company)
+            for company in companies:
+                try:
+                    mat = CompanyAtrocityRelationship.objects.get(atrocity = atrocityDonatedTo, company= company)
+                    prior_matchedDonations = CompanyMatchDonation.objects.filter(atrocity=atrocityDonatedTo, company =company)
+                    nonMatchedDonationsToAtrocity = CompanyDonation.objects.filter(company =company, atrocity = atrocityDonatedTo)
+                    
+                    alldonations = []
+                    donList = []
+                    for donation in prior_matchedDonations:
+                        alldonations.append(donation.amount)
+                    total_donations = sum(alldonations)
+                
+
+                    for don in nonMatchedDonationsToAtrocity:
+                        donList.append(don.amount)
+                
+                    totalDons = sum(donList) + total_donations
                     dec_match = float(mat.match_level)
                     ma = dec_match/100
                     total_don_amount = float(instance.amount) * ma
                     fina = float(total_don_amount)
-                    atroc_balance = AtrocityBalance.objects.get(atrocity = atrocityDonatedTo)
-                    CompanyMatchDonation.objects.create(atrocity = atrocityDonatedTo, company = co, user_matched = instance, amount =str(total_don_amount))
-                   
-                    new_atro_balance = float(atroc_balance.balance) + fina
-                    atroc_balance.balance = float(new_atro_balance)
-                    atroc_balance.save()
+                    difference = float(mat.funding_limit ) - float(totalDons)
+                    new_total = float(totalDons) +fina
+                    
+                    
+                    if totalDons< mat.funding_limit and new_total< mat.funding_limit :
+                        CompanyMatchDonation.objects.create(atrocity = atrocityDonatedTo, company = company, transaction_matched = instance, amount =fina)
+                    elif totalDons <mat.funding_limit and new_total > mat.funding_limit:
+                        CompanyMatchDonation.objects.create(atrocity=atrocityDonatedTo, transaction_matched =instance, company = company, amount = difference)
+                           
+                  
 
                 except ObjectDoesNotExist:
                     pass
@@ -396,13 +636,7 @@ def matchUserCompanyDonation(sender, instance, created=False, **kwargs):
 ## 1.Have Company, Get companies matching agreement, create a companyDonation
 
 
-#Creates a wallet for donations when profile is created
-@receiver(post_save, sender = UserProfile)
-def createAccount(sender, instance=None, created=False, **kwargs):
-    if created:
-        Balance.objects.create(account = instance)
-        AltruePoints.objects.create(account = instance)
-       
+
                     
         
 
@@ -432,24 +666,6 @@ def updateProfileHasNonProfit(sender, instance, created, **kwargs):
 def create_donation(sender, instance =None, created = False, **kwargs):
     
     Donation.objects.create(donor = instance, donation_amount= instance.amount_donated, receiver = instance.sent_to.balance, donation_date= instance.donation_date)
-
-
-
-
-@receiver(post_save, sender = UserProfile)
-def profile_updated(sender, instance, created,  **kwargs):
-        if not created:
-            user = User.objects.get(pk = instance.pk)
-            
-            
-            if user.profile_created == False:
-                user.profile_created = True
-                
-                
-                
-               
-        else: None
-    
 
 
 
@@ -524,36 +740,6 @@ def updateUserAccountBalance(instance, **kwargs):
 
 
 
-# Creates UserProfile when new user is registered onto platform
-@receiver(post_save, sender=settings.AUTH_USER_MODEL)
-def create_userProfile(sender, instance, created=False, **kwargs):
-    if created:
-        nonLevl = AltrueLevel.objects.get(level_number = 0)
-        user = UserProfile.objects.get_or_create(user = instance, altrue_level=nonLevl)
-        
-        
-@receiver(post_save, sender= UserProfile)
-def create_add_requirements(sender, instance, created, **kwargs):
-    if created:
-        levlone =AltrueLevel.objects.get(level_number= 1)
-        requirements = levlone.requiredActions.all()
-        for requirement in requirements:
-            action =AltrueAction.objects.get(id =requirement.id)
-            instance.requirementsForNextLevel.add(action)
-     
-
-
-@receiver(post_save, sender=settings.AUTH_USER_MODEL)
-def save_user_profile(sender, instance, **kwargs):
-    instance.profile.save()
-    
-
-    
-
-@receiver(post_save, sender=settings.AUTH_USER_MODEL)
-def create_auth_token(sender, instance=None, created=False, **kwargs):
-    if created:
-        Token.objects.create(user=instance) 
 
 
 
@@ -613,13 +799,32 @@ def create_auth_token(sender, instance=None, created=False, **kwargs):
 
 
 # #Creates Altrue Points when user registers profile and Makes Them Have Altrue Level None with requirements
-# @receiver(post_save, sender=UserProfile)
+# @receiver(pre_save, sender=UserProfile)
 # def create_AltruePoints(sender, instance, created=False, **kwargs):
 #     if created:
 #         AltruePoints.objects.get_or_create(account= instance)
 #         levelo = AltrueLevel.objects.get(level_number =0)
 #         instance.altrue_level = levelo
-#         # get next level requirements
+#         instance.save(update_fields=['altrue_level'])
+#         try:
+#             if instance.altrue_level == None and len(instance.requirementsForNextLevel.all()) <1:
+#                 levlone =AltrueLevel.objects.get(level_number= 1)
+#                 requirements = levlone.requiredActions.all()
+#                 reqs_needed = []
+#                 for requirement in requirements:
+#                     action =AltrueAction.objects.get(id =requirement.id)
+#                     reqs_needed.append(action)
+#                 for reqs in reqs_needed:
+#                     instance.requirementsForNextLevel.add(reqs)
+                
+                
+            
+            
+#         except: AltruePoints.DoesNotExist
+        
+#         # levelo = AltrueLevel.objects.get(level_number =0)
+#         # instance.altrue_level = levelo
+#         # # get next level requirements
 
 #         levlone =AltrueLevel.objects.get(level_number= 1)
 #         requirements = levlone.requiredActions.all()
@@ -629,8 +834,9 @@ def create_auth_token(sender, instance=None, created=False, **kwargs):
 #             reqs_needed.append(action)
 #         for reqs in reqs_needed:
 #             instance.requirementsForNextLevel.add(reqs)
-#         instance.save(update_fields= ['altrue_level', 'requirementsForNextLevel'])
-
+#         # instance.save(update_fields= ['altrue_level', 'requirementsForNextLevel'])
+   
+            
         
 
 

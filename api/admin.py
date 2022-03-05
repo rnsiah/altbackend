@@ -9,6 +9,7 @@ from api.models import AltruePoints, Link, UserDonation
 
 class UserProfileInline(admin.StackedInline):
     model = UserProfile
+    
     can_delete = False
 
 
@@ -27,12 +28,29 @@ class UserAdmin(BaseUserAdmin):
             'fields': ('email', 'password1', 'password2'),
         }),
     )
-    list_display = ('email', 'first_name', 'last_name', 'is_staff', 'profile_created')
+    list_display = ('email', 'first_name', 'last_name', 'is_staff', 'profile_created','altrue_level')
     search_fields = ('email', 'first_name', 'last_name')
     ordering = ('email',)
-    inlines = (UserProfileInline, )
+    
 
+class ProfileAdmin(admin.ModelAdmin):
+    model = UserProfile
+    list_display = ('username','account_balance','altrue_level','altrue_points')
+    
+    def account_balance(self, obj):
+        if obj.balance.balance is None:
+            return 'Not Created'
+        return'$ {}'.format(obj.balance.balance)
+    
+    def altrue_points(self,obj):
+        if obj.altrue_points is None:
+            return 'Not Created'
+        return obj.altrue_points
+        
 
+admin.site.register(UserProfile, ProfileAdmin)
+
+    
 class DonorAdmin(admin.ModelAdmin):
     model = Donor
     fields = ('email', 'last_name', 'amount_donated', 'sent_to', 'first_name','donation_category')
@@ -76,7 +94,7 @@ class UserDonationAdmin(admin.ModelAdmin):
 admin.site.register(UserDonation, UserDonationAdmin)
 
 class CompanyMatchAdmin(admin.ModelAdmin):
-    list_display = ('company','donation_date','nonprofit', 'atrocity')
+    list_display = ('company','donation_date','nonprofit', 'atrocity','transaction_matched','amount')
     model= CompanyMatchDonation
 admin.site.register(CompanyMatchDonation, CompanyMatchAdmin)
 

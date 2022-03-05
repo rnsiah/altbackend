@@ -91,6 +91,7 @@ class ProfileRepSerializer(FlexFieldsModelSerializer):
     
     def get_profile_picture(self, obj):
         pic = ProfileImage.objects.get(profile = obj)
+        
         serialized = ProfileImageSerializer(pic).data
         return serialized
 
@@ -566,12 +567,13 @@ class UserDonationSerializer(FlexFieldsModelSerializer):
     nonprofit= NonProfitSerializer(fields =['id','name','logo'])
     atrocity = AtrocitySerializer(fields = ['id', 'title', 'category'])
     project = ProjectRepSerializer()
+    user = ProfileRepSerializer(read_only =True)
 
     
 
     class Meta:
         model = UserDonation
-        fields=('id','amount', 'nonprofit', 'atrocity', 'project')
+        fields=('id','amount', 'nonprofit', 'atrocity', 'project','user')
 
     def get_atroCategory(self, obj):
         if obj.atrocity :
@@ -805,6 +807,58 @@ class CompanyNonProfitRelationshipSerializer(FlexFieldsModelSerializer):
     
     
     
+class NonProfitProjectSerializer(FlexFieldsModelSerializer):
+    nonprofit = NonProfitSerializer
+    cause = CategorySerializer
+    atrocity = AtrocitySerializer()
+    currentFunds = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = NonProfitProject
+        fields = ['id','nonprofit', 'cause', 'atrocity','information','fundraising_goal', 'currentFunds']
+
+
+    def create(self, validated_data):
+        return NonProfitProject(**validated_data)
+    
+    def get_currentFunds(self, obj):
+        total =[]
+        donations = UserDonation.objects.filter(project = obj)
+        for don in donations:
+            total.append(don.amount)
+        all= sum(total)
+        return all    
+
+
+class CompanyDonationSerializer(FlexFieldsModelSerializer):
+    company = CompanyRepSerializer()
+    nonprofit = NonProfitSerializer(fields =['id', 'name','logo'])
+    project = ProjectRepSerializer(fields = ['id','title'])
+    atrocity = AtrocitySerializer(fields =['id', 'title'])
+
+    
+    class Meta:
+        model= CompanyDonation
+        fields = ['id','company', 'nonprofit', 'amount' ,'project','atrocity','donation_date']
+    def create(self, validated_data):
+        return CompanyDonation(**validated_data)
+    
+class CompanyMatchDonationSerializer(FlexFieldsModelSerializer):
+    user = serializers.SerializerMethodField()    
+    nonprofit = NonProfitSerializer(fields =['id', 'logo', 'name'])
+    atrocity = AtrocitySerializer(fields =['id', 'title'])
+    project = ProjectRepSerializer(fields =['id','title'])
+    transaction_matched= UserDonationSerializer()
+
+    
+    class Meta:
+        model= CompanyMatchDonation  
+        fields = ['id','user','amount', 'nonprofit','atrocity','project', 'transaction_matched']
+          
+    def get_user(self, obj):
+        love = obj.transaction_matched.user
+        serialized = ProfileRepSerializer(love).data
+        return serialized        
     
 
 class ForProfitCompanySerializer(FlexFieldsModelSerializer):
@@ -819,12 +873,13 @@ class ForProfitCompanySerializer(FlexFieldsModelSerializer):
     nonprofitRelationships = serializers.SerializerMethodField()
     totalDonated = serializers.SerializerMethodField()
     totalDonationCount = serializers.SerializerMethodField()
+    donationsMade = serializers.SerializerMethodField()
     
     
     
     class Meta:
         model = ForProfitCompany
-        fields = ['owner','id','name','contributors','image','categories','logo','description','year_started','mission', 'slug','nonprofits', 'atrocities','headquarters','website_address','coupons','links','nonprofitRelationships', 'atrocityRelationships','totalDonated', 'totalDonationCount']
+        fields = ['owner','id','name','contributors','image','categories','logo','description','year_started','mission', 'slug','nonprofits', 'atrocities','headquarters','website_address','coupons','links','nonprofitRelationships', 'atrocityRelationships','totalDonated', 'totalDonationCount', 'donationsMade']
         expandable_fields = {
             ''
             "nonprofits": 
@@ -852,19 +907,35 @@ class ForProfitCompanySerializer(FlexFieldsModelSerializer):
             
             
     def get_totalDonationCount(self, obj):
-        count = CompanyDonation.objects.filter(company=obj).count()
+        count = CompanyDonation.objects.filter(company=obj).count() + CompanyMatchDonation.objects.filter(company=obj).count()
         return count
     
     def get_totalDonated(self, obj):
         totals=[]
         totalDonations = CompanyDonation.objects.filter(company =obj)
+        totalMatches= CompanyMatchDonation.objects.filter()
         for donation in totalDonations:
             totals.append(donation.amount)
         final = sum(totals)
         return final
             
 
+    def get_donationsMade(self, obj):
         
+        donationsList=[]
+        matchList = []
+        pure_donations = CompanyDonation.objects.filter(company= obj).order_by('-id')
+        match_donations = CompanyMatchDonation.objects.filter(company = obj).order_by('-id')
+        for donations in pure_donations:
+            serialized1 = CompanyDonationSerializer(donations).data
+            donationsList.append(serialized1)
+            
+        for donation in match_donations:
+            serialized = CompanyMatchDonationSerializer(donation).data
+            matchList.append(serialized)
+        donationsMade = dict({"donations": donationsList,
+                              'matched':matchList})
+        return donationsMade
         
     
     def get_atrocityRelationships(self, obj):
