@@ -1,3 +1,4 @@
+import profile
 from django.db import models
 from django.db.models.fields.related import ForeignKey
 from django.urls import reverse
@@ -122,7 +123,98 @@ class UserProfile(models.Model):
         
     
     
+    def noneLevelCheck(self, levelno):
+        if levelno is None:
+            levelno = self.altrue_level.level_number
+        else:
+            pass
+        level = AltrueLevel.objects.get(level_number =levelno)
+
+        action_codeList = []
+        requirements = level.requiredActions.all()
+        for requirement in requirements:
+            action_codeList.append(requirement.action_code.code)
+        return action_codeList
+
+    def checkaggregates(self):
+        codes = []
+        codes.append(self.atrocityawardcheck())
+        codes.append(self.nonprofitawardcheck())
+        codes.append(self.companyawardcheck())
+        return codes
+        
     
+    def picupdatecheck(self):
+        if 'default.png' not in str(self.profile_pic.image):
+            return True
+        else:
+            return False
+    
+    def atrocityawardcheck(self):
+        if len(self.atrocity_list.all()) >= 3:
+            love =AltrueAction.objects.get(pk =13)
+            return love.action_code.code
+        else:
+            return None
+
+    def nonprofitawardcheck(self):
+        if len(self.nonProfit_list.all()) >= 3:
+            love =AltrueAction.objects.get(pk =8)
+            return love.action_code.code
+        else:
+            return None
+
+    def companyawardcheck(self):
+        if len(self.comapnies.all()) >= 3:
+            love =AltrueAction.objects.get(pk =9)
+            return love.action_code.code
+        else: 
+            return None
+
+    def needsTolevelUp(self):
+        current_level = self.altrue_level
+        print(current_level)
+    
+        needsToBeCompleted = AltrueLevel.objects.get(level_number =current_level.level_number+1)
+        print(needsToBeCompleted)
+        done_actions = list(UserAltrueAction.objects.filter(profile_acting = self))
+        lo = list(needsToBeCompleted.requiredActions.all())
+        po =[]
+        for action in done_actions:
+            po.append(action.altrue_action)
+        print(po)
+        print(lo)
+        result = set(lo).intersection(po)
+
+        print(len(result))
+        print(int(self.altrue_points.balance))
+        print(int(needsToBeCompleted.minimum_points))
+        
+        if int(self.altrue_points.balance) > int(needsToBeCompleted.minimum_points) and len(result) == len(lo) :
+           return {'number': needsToBeCompleted.level_number}
+        else:
+            return False
+
+
+    def updateLevel(self,level):
+        
+        new_level =AltrueLevel.objects.get(level_number= level)
+        requirements = new_level.requiredActions.all()
+        reqs_needed = []
+        for requirement in requirements:
+            action =AltrueAction.objects.get(id =requirement.id)
+            reqs_needed.append(action)
+        for reqs in reqs_needed:
+            self.requirementsForNextLevel.add(reqs)
+        if len(self.requirementsForNextLevel.all()):
+            self.altrue_level = new_level
+            self.save(update_fields=['altrue_level'])
+            return True
+        else:
+            return False
+
+
+
     def startAltrueLevel(self):
         if self.altrue_level is None:
             self.setfirstLevel()
@@ -174,26 +266,8 @@ class UserProfile(models.Model):
         user_site = ' www.altrueglobal/user/'+self.get_userName() 
         return str(user_site)
 
-    def check_if_userNamechanged(self):
-        if self.pk is None:
-            return False
-        # else:
-        #     original = UserProfile.objects.get(pk =self.pk)
-        #     if original.username != self.username:
-        #         return True
-        #     return False
-
-
-    # def saveProfilePicture(self):
-       
-
-    #     with open (settings.MEDIA_ROOT +'/'+file_name, "rb") as reopen:
-    #         django_file= File(reopen)
-    #         self.profile_picture.save(file_name, django_file, save=False)
-
+    
     def save(self, *args, **kwargs):
-        
-        
         self.slug = self.username
         self.generate_qr()
         super(UserProfile, self).save()
@@ -413,6 +487,7 @@ def create_userProfile(sender, instance, created=True, **kwargs):
         love.save()
         Balance.objects.create(account = love)
         AltruePoints.objects.create(account = love)
+        ProfileImage.objects.get_or_create(profile =love)
         love.setfirstLevel()
         levlone =AltrueLevel.objects.get(level_number= 1)
         requirements = levlone.requiredActions.all()
@@ -670,30 +745,34 @@ def create_donation(sender, instance =None, created = False, **kwargs):
 
 
 
+
 ## Updates The  User's Altrue Points When User Completes A Task      
-@receiver(pre_save, sender= 'Alt.UserAltrueAction') 
+@receiver(post_save, sender= 'Alt.UserAltrueAction') 
 def awardAltruePoints(instance, created=True, **kwargs):
-    if not created:
+    if created:
         user = instance.profile_acting
+        profile = UserProfile.objects.get(pk =user.pk)
         #get point_wallet
         point_wallet = AltruePoints.objects.get(account = user )
 
         #get_specific_action to be rewarded
-        the_action = AltrueAction.objects.get(pk= instance.altrue_action)
+        the_action = AltrueAction.objects.get(pk= instance.altrue_action.pk)
         
         requirementsNeededForNextLevel = user.requirementsForNextLevel.all()
         #remove action from list
         if the_action in requirementsNeededForNextLevel:
             user.requirementsForNextLevel.remove(the_action)
                         
-
+        else:
+            pass
         #check how many times user has compleated specific action to see if they arent over the maximum to receive points
-        noOfActionsAlreadyDone = UserAltrueAction.objects.filter(profile_acting = user, altrue_action =the_action).count()
-
+        noOfActionsAlreadyDone = UserAltrueAction.objects.filter(profile_acting = user, altrue_action =the_action)
         # award if they havent reached the max number of actions
-        if noOfActionsAlreadyDone <= instance.altrue_action.number_of_occurrences:
+        if len(noOfActionsAlreadyDone) <= int(the_action.number_of_occurrences):
             #check if the action was promoted and give promotion if so
-            if instance.altrue_action.is_promoted is True:
+            if the_action.is_promoted == True:
+                UserAltrueAction.objects.filter(pk= instance.pk).update(is_promotion =True)
+
                 amount_awarded = the_action.points_awarded * the_action.promotion.multiplier
                 point_wallet.balance += amount_awarded
                 point_wallet.save()
@@ -702,23 +781,36 @@ def awardAltruePoints(instance, created=True, **kwargs):
                 point_wallet.balance += amount_awarded
                 point_wallet.save()
 
-        # check altrueLevel and point total to see if user 
-        # satisfied all requirements needed to move to the next level
-        user_level = user.altrue_level.level_number
-        Alevel = AltrueLevel.objects.get(level_number = user_level)
-        altue_level_number = Alevel.level_number
-        next_level = AltrueLevel.objects.get(level_number= altue_level_number+1)
+        else:
+            pass
         
-        count = user.requirementsForNextLevel.all().count()
-
-        #if satisfied, changing them to the next level
-        if user.altrue_points.balance > next_level.minimum_points and count == 0:
-            user.altrue_level= next_level
-            next_level_requirements = next_level.requiredActions.all()
-            # update the requirements to move to the next level
-            for requirement in next_level_requirements:
-                user.requirementsForNextLevel.add(requirement)   
-            user.save(update_fields= ['altrue_level', 'requirementsForNextLevel'])
+        if profile.altrue_level.level_number == 0:
+            nl = user.checkaggregates()
+            print(nl)
+            for code in nl:
+                if code is not None:
+                    thecode= AltrueActionCode.objects.get(code = code)
+                    action = AltrueAction.objects.get(action_code = thecode)       
+                    already_done =  UserAltrueAction.objects.filter(profile_acting = user, altrue_action=action)
+                    if len(already_done)==0:
+                        UserAltrueAction.objects.create(profile_acting = user, altrue_action= action)
+                    else:
+                        pass
+                else: 
+                    pass
+        
+            yo = (profile.needsTolevelUp())
+        
+        
+            if yo != False:
+                profile.updateLevel(yo['number'])
+            
+            pass
+        else:
+            pass
+    else:
+        pass
+    
 
         
         
@@ -738,10 +830,10 @@ def updateUserAccountBalance(instance, **kwargs):
     balance.save(update_fields=['balance'])
     
 
-@receiver(post_save, sender = AltrueAction)
-def levelNoneCheck(sender, instance, created=False, **kwargs):
-    if created and instance.altrue_level.level_number is 0:
-        print('about to check for')
+# @receiver(post_save, sender = AltrueAction)
+# def levelNoneCheck(sender, instance, created=False, **kwargs):
+#     if created and instance.altrue_level.level_number is 0:
+#         print('about to check for')
 
 
 

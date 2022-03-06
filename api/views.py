@@ -8,7 +8,7 @@ from rest_framework import viewsets, generics, status
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.authentication import TokenAuthentication
-from Alt.models import Atrocity, Category, CompanyStore, ForProfitCompany, NonProfit, NonProfitProject, Order, Rating, Shirt, ShirtVariations
+from Alt.models import Atrocity, Category, CompanyStore, ForProfitCompany, NonProfit, NonProfitProject, Order, Rating, Shirt, ShirtVariations, UserAltrueAction
 from api.models import Balance, Link, User, UserDonation, UserProfile
 from rest_framework.response import Response
 from rest_framework.decorators import action, authentication_classes, permission_classes
@@ -187,7 +187,7 @@ class UserProfileView(viewsets.ModelViewSet):
     atrocity_instance = Atrocity.objects.get(id = request.data['id'])
     try:
       if atrocity_instance in atrocity_list:
-        response ={ 'message': 'Atrocity List has been update', 'result':'hey'}
+        response ={ 'message': 'You are already following this atrocity', 'result':'hey'}
         return Response(response, status= status.HTTP_200_OK)
       else:
          

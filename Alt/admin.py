@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import CompanyBalance, CompanyDonation, CompanyProjectRelationShip, NonProfitAtrocityRelationShip, NonProfitProject, CompanyAtrocityRelationship, CompanyNonProfitRelationship ,AtrocityShirt, Shirt, Atrocity, Category, NonProfit, Country, Rating, Order, OrderItem, CheckoutAddress, CompanyCoupon, CompanyStore, ForProfitCompany, AltrueAction, AltrueLevel, ShirtColor, ShirtSize, ShirtVariations, UserAltrueAction, FriendInvite, AltrueActionCode, ProfileImage
+from .models import  AltruePointPromotion, CompanyBalance, CompanyDonation, CompanyProjectRelationShip, NonProfitAtrocityRelationShip, NonProfitProject, CompanyAtrocityRelationship, CompanyNonProfitRelationship ,AtrocityShirt, Shirt, Atrocity, Category, NonProfit, Country, Rating, Order, OrderItem, CheckoutAddress, CompanyCoupon, CompanyStore, ForProfitCompany, AltrueAction, AltrueLevel, ShirtColor, ShirtSize, ShirtVariations, UserAltrueAction, FriendInvite, AltrueActionCode, ProfileImage
 from Alt.models import AtrocityBalance, NonProfitBalance
 
 
@@ -98,22 +98,61 @@ class AltrueLevelAdmin(admin.ModelAdmin):
     list_display = ('level_number', 'name','minimum_points', 'maximum_points')
 admin.site.register(AltrueLevel, AltrueLevelAdmin)
 
-admin.site.register(UserAltrueAction)
+class UserActionAdmin(admin.ModelAdmin):
+    model = UserAltrueAction
+    list_display = ('profile_acting','altrue_action','points','date_completed', )
+    
+    def points(self, obj):
+        action = obj.altrue_action
+
+        try:
+            love = AltrueAction.objects.get(pk = action.pk)
+            if love.is_promoted ==True:
+                total = love.points_awarded * love.promotion.multiplier
+                return total
+            return love.points_awarded
+        except love.DoesNotExist:
+            return 0
+        
+
+
+admin.site.register(UserAltrueAction, UserActionAdmin)
+
+
+
+class AltruePointPromotionAdmin(admin.ModelAdmin):
+    model = AltruePointPromotion
+    
+    list_display = ('name','is_active','start_date','end_date','actions_promoted')
+
+    def actions_promoted(self, obj):
+        li = []
+        love = list(AltrueAction.objects.filter(promotion =obj))
+        for lo in love:
+            li.append({lo.id:lo.requirement})
+        return li
+
+admin.site.register(AltruePointPromotion, AltruePointPromotionAdmin)
+
+
 
 class AltrueActionAdmin(admin.ModelAdmin):
     model = AltrueAction
-    list_display = ('requirement', 'level_required', 'points_awarded')
+    list_display = ('id','requirement', 'needed_to_pass', 'points_awarded','code')
     
-    def level_required(self, obj):
+    def needed_to_pass(self, obj):
         level1 = AltrueLevel.objects.get(level_number =1)
         level2 = AltrueLevel.objects.get(level_number =2)
         if obj in level1.requiredActions.all():
-            return "Level 1"
+            return "Level 0"
         elif obj in level2.requiredActions.all():
-            return "Level 2"
+            return "Level 1"
         return 'No Level'
         
-        
+    def code(self, obj):
+        return obj.action_code
+
+
 admin.site.register(AltrueAction, AltrueActionAdmin)
 
 

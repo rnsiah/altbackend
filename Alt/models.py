@@ -1,3 +1,4 @@
+from email.policy import default
 from django.db import models
 from django.conf import settings
 from django.db.models.deletion import CASCADE
@@ -18,7 +19,7 @@ from django.utils import timezone
 
 class ProfileImage(models.Model):
     profile = models.OneToOneField("api.UserProfile",  on_delete=models.CASCADE,  related_name ='profile_pic', blank = True, primary_key = True)
-    image = models.ImageField(upload_to= 'profiles', null = True, blank = True)
+    image = models.ImageField(upload_to= 'profiles', default ='default.png')
 
     def __str__(self):
         return self.profile.user.email + "'s profile picture"
@@ -48,12 +49,15 @@ class AltrueAction(models.Model):
     promotion = models.ForeignKey("Alt.AltruePointPromotion", on_delete=models.CASCADE, blank = True, null = True )
 
     def __str__(self):
-        return self.requirement+' awards ' + str(self.points_awarded) +' Altrue points'
+        return self.requirement
+
+    
 
 class UserAltrueAction(models.Model):
     profile_acting = models.ForeignKey("api.UserProfile", on_delete=models.CASCADE)
     altrue_action = models.ForeignKey('Alt.AltrueAction', blank=True, null=True, on_delete=models.CASCADE)
     date_completed = models.DateField(auto_now_add=True)
+    is_promotion = models.BooleanField(default = False)
 
     def __str__(self):
         if self.altrue_action is None:
@@ -77,8 +81,14 @@ class AltruePointPromotion(models.Model):
     name = models.CharField(max_length = 50, null= True, blank = True)
     description= models.TextField(blank= True, null= True)
     donation_increase = models.IntegerField(choices= DONATION_INCREASE, null = True, blank=True)
-    
+    is_active = models.BooleanField(default=False)
+    start_date = models.DateTimeField(auto_now_add=True)
+    end_date = models.DateTimeField(blank=True, null=True)
 
+    
+    def __str__(self):
+        return self.name
+    
 
 
 
@@ -831,12 +841,13 @@ def createNPRelationShipIfnotCreated(instance, created, **kwargs):
 #         FriendInvite.objects.get(inviter = str(instance.user.email))
 
 
-   
+# @receiver(post_save, sender = 'api.UserProfile')
+# def created   
 
     
 
 @receiver(post_save, sender ='api.CompanyMatchDonation')
-def updateTotal(instance, created = True, **kwargs):
+def updateTotals(instance, created = True, **kwargs):
     if created:
         
         if instance.project!= None:

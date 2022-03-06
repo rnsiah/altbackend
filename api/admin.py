@@ -62,6 +62,8 @@ admin.site.register(NonProfitRequest)
 admin.site.register(RequestVotes)
 
 
+
+
 class BalanceAdmin(admin.ModelAdmin):
     model = Balance
     fields = ('account', 'balance')
