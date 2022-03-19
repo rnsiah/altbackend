@@ -142,6 +142,20 @@ class UserProfile(models.Model):
         codes.append(self.nonprofitawardcheck())
         codes.append(self.companyawardcheck())
         return codes
+
+    def aggcheck(self):
+        lit = []
+        actions = [13, 8, 9]
+        for action in actions:
+            the_action = AltrueAction.objects.get(pk=action)
+            ## see if user has completed these actions
+            completed = UserAltrueAction.objects.filter(profile_acting = self, altrue_action=the_action)
+            if completed:
+                #remove from the list
+                lit.append(the_action)
+            return lit
+        return lit
+              
         
     
     def picupdatecheck(self):

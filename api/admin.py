@@ -28,14 +28,14 @@ class UserAdmin(BaseUserAdmin):
             'fields': ('email', 'password1', 'password2'),
         }),
     )
-    list_display = ('email', 'first_name', 'last_name', 'is_staff', 'profile_created','altrue_level')
+    list_display = ('pk','email', 'first_name', 'last_name', 'is_staff', 'profile_created','altrue_level')
     search_fields = ('email', 'first_name', 'last_name')
-    ordering = ('email',)
+    ordering = ('-pk',)
     
 
 class ProfileAdmin(admin.ModelAdmin):
     model = UserProfile
-    list_display = ('username','account_balance','altrue_level','altrue_points')
+    list_display = ('pk','username','account_balance','altrue_level','altrue_points')
     
     def account_balance(self, obj):
         if obj.balance.balance is None:

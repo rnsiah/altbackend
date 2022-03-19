@@ -16,7 +16,7 @@ admin.site.register(Shirt, ShirtAdmin)
 admin.site.register(ShirtVariations)
 
 class NonProfitAdmin(admin.ModelAdmin):
-    list_display = ('name',)
+    list_display = ('id','name',)
     prepopulated_fields = {'slug': ('name',)} 
 
 admin.site.register(NonProfit, NonProfitAdmin)
@@ -44,7 +44,7 @@ admin.site.register(CheckoutAddress)
 admin.site.register(AltrueActionCode)
 
 class NonProfitBalanceAdmin(admin.ModelAdmin):
-    list_display = ('nonprofit', 'balance',)
+    list_display = ('id','nonprofit', 'balance',)
 
 admin.site.register(NonProfitBalance, NonProfitBalanceAdmin)
 
@@ -75,12 +75,12 @@ class CompanyDonationAdmin(admin.ModelAdmin):
 admin.site.register(CompanyDonation, CompanyDonationAdmin)
 
 class CompanyBalanceAdmin(admin.ModelAdmin):
-    list_display = ('company', 'balance')
+    list_display = ('id','company', 'balance')
     
 admin.site.register(CompanyBalance, CompanyBalanceAdmin)
 
 class NonProfitProjectAdmin(admin.ModelAdmin):
-    list_display =('nonprofit', 'title')
+    list_display =('id','nonprofit', 'title')
     
 admin.site.register(NonProfitProject, NonProfitProjectAdmin)
 admin.site.register(NonProfitAtrocityRelationShip)
@@ -156,7 +156,12 @@ class AltrueActionAdmin(admin.ModelAdmin):
 admin.site.register(AltrueAction, AltrueActionAdmin)
 
 
-admin.site.register(ProfileImage)
+
+class ProfileImageAdmin(admin.ModelAdmin):
+    model =ProfileImage
+    list_display =('profile_id', 'profile') 
+    ordered=('profile_id',)
+admin.site.register(ProfileImage, ProfileImageAdmin)
 
 
 

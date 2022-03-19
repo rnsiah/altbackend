@@ -8,11 +8,11 @@ from rest_framework import viewsets, generics, status
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.authentication import TokenAuthentication
-from Alt.models import Atrocity, Category, CompanyStore, ForProfitCompany, NonProfit, NonProfitProject, Order, Rating, Shirt, ShirtVariations, UserAltrueAction
+from Alt.models import AltrueAction, Atrocity, Category, CompanyStore, ForProfitCompany, NonProfit, NonProfitProject, Order, Rating, Shirt, ShirtVariations, UserAltrueAction
 from api.models import Balance, Link, User, UserDonation, UserProfile
 from rest_framework.response import Response
 from rest_framework.decorators import action, authentication_classes, permission_classes
-from .serializers import CompanyStoreSerializer, NonProfitListSerializer, NonProfitProjectSerializer, OrderItemSerializer, ProfileRepSerializer, ShirtListSerialzier, ShirtSerializer, NonProfitSerializer, AtrocitySerializer,  CategorySerializer, RatingSerializer, ShirtVariationSerializer, UserProfileSerializer
+from .serializers import AltrueActionSerializer, CompanyStoreSerializer, NonProfitListSerializer, NonProfitProjectSerializer, OrderItemSerializer, ProfileRepSerializer, ShirtListSerialzier, ShirtSerializer, NonProfitSerializer, AtrocitySerializer,  CategorySerializer, RatingSerializer, ShirtVariationSerializer, UserProfileSerializer
 from api.serializers import ForProfitCompanySerializer, LinkSerializer, OrderSerializer, UserDonationSerializer, UserSerializer
 from api.permissions import IsLoggedInUserOrAdmin, IsAdminUser
 from django.shortcuts import get_object_or_404
@@ -218,13 +218,36 @@ class UserProfileView(viewsets.ModelViewSet):
   @action(detail = True, methods=['patch'])
   def add_nonprofit(self, request, *args, **kwargs):
     userprofile = self.get_object()
+    requirementsList = userprofile.requirementsForNextLevel.all()
+    aggregates_completed = []
     nonprofit_list = userprofile.nonProfit_list.all()
+    add_np_action = AltrueAction.objects.get(pk=15)
+
     try:
       nonprofit_instance = NonProfit.objects.get(id = request.data['id'])
       if nonprofit_instance not in nonprofit_list:
         userprofile.nonProfit_list.add(nonprofit_instance)
         userprofile.save()
-        response={ 'message': 'Nonprofit List has been update', 'result': 'hey'}
+        try:
+          act= UserAltrueAction(profile_acting = userprofile, altrue_action=add_np_action)
+          act.save()
+          ser = AltrueActionSerializer(add_np_action).data
+          try:
+            user =self.get_object()
+            aggregates = user.aggcheck()
+            print({"the_list":requirementsList})
+            for aggregate in aggregates:
+              if aggregate not in requirementsList:
+                aggregates_completed.append(aggregate)
+                print(aggregates_completed)
+              withAggregates = AltrueActionSerializer(aggregates_completed, many=True).data
+              resposne ={"message":'NonProfit List has been updated', 'result':[ser, withAggregates]}
+              return Response(response, status= status.HTTP_200_OK)
+          except:
+            pass  
+        except:
+          pass
+        response={ 'message': 'Nonprofit List has been update', 'result': ser}
         return Response(response, status= status.HTTP_200_OK)
       else:
         response =  {'message': 'This NonProfit is already in your list', 'result': 'hey'}
@@ -257,6 +280,7 @@ class UserProfileView(viewsets.ModelViewSet):
       if company_instance not in company_list:
         userprofile.company.add(company_instance)
         userprofile.save()
+     
         response = {'message': 'Company list has been updated', 'result': company_instance}
         return Response(response, status= status.HTTP_200_OK)
       else:
