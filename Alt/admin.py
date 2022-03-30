@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import  AltruePointPromotion, CompanyBalance, CompanyDonation, CompanyProjectRelationShip, NonProfitAtrocityRelationShip, NonProfitProject, CompanyAtrocityRelationship, CompanyNonProfitRelationship ,AtrocityShirt, Shirt, Atrocity, Category, NonProfit, Country, Rating, Order, OrderItem, CheckoutAddress, CompanyCoupon, CompanyStore, ForProfitCompany, AltrueAction, AltrueLevel, ShirtColor, ShirtSize, ShirtVariations, UserAltrueAction, FriendInvite, AltrueActionCode, ProfileImage
+from .models import  AltruePointPromotion, CompanyBalance, CompanyDonation, CompanyProjectRelationShip, NonProfitAtrocityRelationShip, NonProfitProject, CompanyAtrocityRelationship, CompanyNonProfitRelationship ,AtrocityShirt, Shirt, Atrocity, Category, NonProfit, Country, Rating, Order, OrderItem, CheckoutAddress, CompanyCoupon, CompanyStore, ForProfitCompany, AltrueAction, AltrueLevel, ShirtColor, ShirtSize, ShirtVariations, UserAltrueAction, FriendInvite, AltrueActionCode, ProfileImage, UserMatchRelationShip
 from Alt.models import AtrocityBalance, NonProfitBalance
 
 
@@ -92,6 +92,10 @@ admin.site.register(CompanyAtrocityRelationship, CompanyAtroRelationshipAdmin)
 class CompanyNPRelationshipAdmin(admin.ModelAdmin):
     list_display = ('company', 'nonprofit', 'total_raised')
 admin.site.register(CompanyNonProfitRelationship, CompanyNPRelationshipAdmin)
+
+class UserMatchRelationShipAdmin(admin.ModelAdmin):
+    list_display = ('user_matching_donation','user_being_matched')
+admin.site.register(UserMatchRelationShip, UserMatchRelationShipAdmin)
 
 
 class AltrueLevelAdmin(admin.ModelAdmin):
