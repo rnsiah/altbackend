@@ -1,4 +1,5 @@
 from email.policy import default
+from xmlrpc.client import Boolean
 from django.db import models
 from django.conf import settings
 from django.db.models.deletion import CASCADE
@@ -615,6 +616,30 @@ class CompanyCoupon(models.Model):
 
 
 
+class UserMatchRelationShip(models.Model):
+    
+    MATCH_PERCENTAGE =(
+        (5, 'Five Percent'),
+        (10, 'Ten Percent'),
+        (25, 'Twenty Five Percent'),
+        (50, 'Fifty Percent'),
+        (100, 'Full Match')
+    )
+    user_matching_donation = models.ForeignKey('api.UserProfile',related_name='user_matching', on_delete=models.CASCADE)
+    user_being_matched = models.ForeignKey('api.UserProfile', related_name='user_being_matched', on_delete=models.CASCADE)
+    funding_limit =models.FloatField(default=0, null = True, blank=True)
+    needs_permission = models.BooleanField(default=True, blank = True)
+    match_level = models.IntegerField(choices=MATCH_PERCENTAGE)
+    
+    class Meta:
+        
+        def __str__(self):
+            return '{} matches {}%% for donations to {}'.format(self.user_matching_donations.username, self.match_level, self.user_being_matched.username)
+        
+        
+
+
+
 class CompanyNonProfitRelationship(models.Model):
     
     MATCH_PERCENTAGE =(
@@ -715,6 +740,7 @@ class CompanyDonation(models.Model):
         elif self.project:
             return '{} donates to {} to {}'.format(self.company.name, self.amount, self.project.title)
     
+
 
 
 class NonProfitProject(models.Model):

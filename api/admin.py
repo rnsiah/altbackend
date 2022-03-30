@@ -91,7 +91,7 @@ admin.site.register(AltruePoints, AltruePointsAdmin)
 
 
 class UserDonationAdmin(admin.ModelAdmin):
-    list_display = ('user', 'amount', 'nonprofit', 'atrocity','project')
+    list_display = ('pk' ,'user', 'amount', 'nonprofit', 'atrocity','project')
     
 admin.site.register(UserDonation, UserDonationAdmin)
 

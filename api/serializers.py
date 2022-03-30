@@ -67,7 +67,7 @@ class ProfileImageSerializer(FlexFieldsModelSerializer):
 
     def get_url(self,obj):
         if settings.DEBUG:  # debug enabled for dev and stage
-            return 'http://10.0.0.72:8000/media/{}'.format(obj.image ) 
+            return 'http://10.0.0.242:8000/media/{}'.format(obj.image ) 
 
 
 
@@ -947,7 +947,10 @@ class ForProfitCompanySerializer(FlexFieldsModelSerializer):
         totalMatches= CompanyMatchDonation.objects.filter()
         for donation in totalDonations:
             totals.append(donation.amount)
+        for match in totalMatches:
+            totals.append(match.amount)
         final = sum(totals)
+        
         return final
             
 

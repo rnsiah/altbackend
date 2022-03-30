@@ -18,7 +18,7 @@ from io import BytesIO
 from io import StringIO
 from django.core.files.uploadedfile import InMemoryUploadedFile
 import Alt
-from Alt.models import AltrueAction, AltrueActionCode, AltrueLevel, Atrocity, AtrocityBalance, CompanyAtrocityRelationship, CompanyBalance, CompanyDonation, CompanyNonProfitRelationship, CompanyProjectRelationShip, ForProfitCompany, FriendInvite, NonProfit, NonProfitBalance, NonProfitProject, UserAltrueAction, ProfileImage
+from Alt.models import AltrueAction, AltrueActionCode, AltrueLevel, Atrocity, CompanyAtrocityRelationship, CompanyDonation, CompanyNonProfitRelationship, CompanyProjectRelationShip, ForProfitCompany, NonProfit, NonProfitProject, UserAltrueAction, ProfileImage
 from django.core.exceptions import ObjectDoesNotExist
 import decimal
 from django.utils import timezone
@@ -123,18 +123,23 @@ class UserProfile(models.Model):
         
     
     
-    def noneLevelCheck(self, levelno):
-        if levelno is None:
-            levelno = self.altrue_level.level_number
+    def noneLevelCheck(self):
+        
+        levelno = self.altrue_level.level_number
+        if levelno == 0:
+            level = AltrueLevel.objects.get(level_number =levelno+1)
+
+            all =[]
+            requirements = level.requiredActions.all()
+            for requirement in requirements:
+                all.append(requirement)
+            for any in all:
+                self.requirementsForNextLevel.add(any)
+        
+            
         else:
             pass
-        level = AltrueLevel.objects.get(level_number =levelno)
-
-        action_codeList = []
-        requirements = level.requiredActions.all()
-        for requirement in requirements:
-            action_codeList.append(requirement.action_code.code)
-        return action_codeList
+        
 
     def checkaggregates(self):
         codes = []
@@ -418,6 +423,8 @@ class UserDonation(models.Model):
 
     def __str__(self):
         return self.user.user.email
+
+
 
 
 
