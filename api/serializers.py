@@ -10,7 +10,7 @@ from django.template.defaultfilters import truncatechars_html
 from Alt.admin import AltruePointPromotionAdmin
 from rest_framework import serializers
 from api.models import AltruePoints, Balance, CompanyMatchDonation, Donation, Donor, Link, User, UserDonation, UserProfile
-from Alt.models import AltrueAction, AltrueActionCode, AltrueLevel, AltruePointPromotion, Atrocity, AtrocityBalance, Category, CompanyAtrocityRelationship, CompanyCoupon, CompanyDonation, CompanyNonProfitRelationship, CompanyStore, Country, ForProfitCompany, NonProfit, NonProfitBalance, Order, OrderItem, Rating, Shirt, NonProfitProject, ProfileImage, ShirtColor, ShirtSize, ShirtVariations
+from Alt.models import AltrueAction, AltrueActionCode, AltrueLevel, AltruePointPromotion, Atrocity, AtrocityBalance, Category, CompanyAtrocityRelationship, CompanyCoupon, CompanyDonation, CompanyNonProfitRelationship, CompanyStore, Country, ForProfitCompany, NonProfit, NonProfitBalance, Order, OrderItem, Rating, Shirt, NonProfitProject, ProfileImage, ShirtColor, ShirtSize, ShirtVariations, UserMatchRelationShip, UserMatchTransaction
 from django.contrib.auth import get_user_model
 from drf_writable_nested import WritableNestedModelSerializer, UniqueFieldsMixin, NestedUpdateMixin
 from rest_auth.serializers import TokenSerializer
@@ -67,7 +67,7 @@ class ProfileImageSerializer(FlexFieldsModelSerializer):
 
     def get_url(self,obj):
         if settings.DEBUG:  # debug enabled for dev and stage
-            return 'http://10.0.0.242:8000/media/{}'.format(obj.image ) 
+            return 'http://51e6-2601-2c0-102-428-94eb-738f-e936-b4d3.ngrok.io/media/{}'.format(obj.image ) 
 
 
 
@@ -145,7 +145,7 @@ class AltrueActionSerializer(FlexFieldsModelSerializer):
     action_code = AltrueActionCodeSerializer()
     class Meta:
         model = AltrueAction
-        fields = ('id','requirement', 'points_awarded','action_code','is_promoted','promotion')
+        fields = ('id','requirement', 'points_awarded','action_code','is_promoted','promotion','info')
 
 
 
@@ -296,6 +296,7 @@ class ShirtAtrocitySerializer(FlexFieldsModelSerializer):
     class Meta:
         model = Atrocity
         fields = ['id','title', 'region', 'info' ,'image_url', 'country', 'category' ]
+
 
 
 
@@ -654,6 +655,7 @@ class UserProfileSerializer(FlexFieldsModelSerializer):
     donationTotal = serializers.SerializerMethodField()
     np = serializers.SerializerMethodField()
     comp = serializers.SerializerMethodField()
+    pedingMatchTransaction = serializers.SerializerMethodField()
 
 
     requirementsForNextLevel = AltrueActionSerializer(many = True, read_only = True)
@@ -662,7 +664,7 @@ class UserProfileSerializer(FlexFieldsModelSerializer):
       
     class Meta:
         model = UserProfile
-        fields = ('user','username','altrue_level','title','np','comp','donationTotal', 'dob', 'address', 'country', 'city', 'zip', 'qr_code_img', 'has_company','has_nonprofit','is_companyContributor','is_nonprofitContributor','shirt_list', 'atrocity_list', 'nonProfit_list','profiles_following', 'balance', 'donor', 'orders', 'userdonations', 'amount_following','amount_followers', 'NPTotals' ,'AtroTotals', 'altruepoints', 'profile_picture', 'altrue_level','requirementsForNextLevel')
+        fields = ('user','username','altrue_level','title','np','comp','donationTotal', 'dob', 'address', 'country', 'city', 'zip', 'qr_code_img', 'has_company','has_nonprofit','is_companyContributor','is_nonprofitContributor','shirt_list', 'atrocity_list', 'nonProfit_list','profiles_following', 'balance', 'donor', 'orders', 'userdonations', 'amount_following','amount_followers', 'NPTotals' ,'AtroTotals', 'altruepoints', 'profile_picture', 'altrue_level','requirementsForNextLevel','pedingMatchTransaction')
         expandable_fields ={}
     
     def create(self, validated_data):
@@ -743,6 +745,13 @@ class UserProfileSerializer(FlexFieldsModelSerializer):
         return userPoints.balance
             
 
+
+    def get_pedingMatchTransaction(self,obj):
+        myrelationships = UserMatchRelationShip.objects.filter(user_matching_donation= obj)
+        # pending_transactions = UserMatchTransaction.objects.filter(confirmed = False, relationship = myrelationships )
+        # for transaction in pending_transactions:
+            
+        return myrelationships
 
     def get_AtroTotals(self, obj):
         atr = Atrocity.objects.all()

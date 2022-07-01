@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import  AltruePointPromotion, CompanyBalance, CompanyDonation, CompanyProjectRelationShip, NonProfitAtrocityRelationShip, NonProfitProject, CompanyAtrocityRelationship, CompanyNonProfitRelationship ,AtrocityShirt, Shirt, Atrocity, Category, NonProfit, Country, Rating, Order, OrderItem, CheckoutAddress, CompanyCoupon, CompanyStore, ForProfitCompany, AltrueAction, AltrueLevel, ShirtColor, ShirtSize, ShirtVariations, UserAltrueAction, FriendInvite, AltrueActionCode, ProfileImage, UserMatchRelationShip
+from .models import  AltruePointPromotion, CompanyBalance, CompanyDonation, CompanyProjectRelationShip, NonProfitAtrocityRelationShip, NonProfitProject, CompanyAtrocityRelationship, CompanyNonProfitRelationship ,AtrocityShirt, Shirt, Atrocity, Category, NonProfit, Country, Rating, Order, OrderItem, CheckoutAddress, CompanyCoupon, CompanyStore, ForProfitCompany, AltrueAction, AltrueLevel, ShirtColor, ShirtSize, ShirtVariations, UserAltrueAction, FriendInvite, AltrueActionCode, ProfileImage, UserMatchRelationShip, UserMatchTransaction
 from Alt.models import AtrocityBalance, NonProfitBalance
 
 
@@ -30,6 +30,11 @@ class ShirtDisplayAdmin(admin.ModelAdmin):
     list_display = ['get_size_display']
     
     
+
+admin.site.register(UserMatchTransaction)
+    
+
+    
 admin.site.register(ShirtSize, ShirtDisplayAdmin)
 admin.site.register(Atrocity)
 admin.site.register(Category)
@@ -58,12 +63,13 @@ admin.site.register(FriendInvite)
 
 admin.site.register(CompanyProjectRelationShip)
 
-# class CompanyAdmin(admin.ModelAdmin):
-#     list_display=('name',)
-# admin.site.register(ForProfitCompany, CompanyAdmin)
 
 
-admin.site.register(ForProfitCompany)
+
+
+class CompanyAdmin(admin.ModelAdmin):
+    list_display=('id','name')
+admin.site.register(ForProfitCompany, CompanyAdmin)
 
 admin.site.register(CompanyCoupon)
 
@@ -94,7 +100,7 @@ class CompanyNPRelationshipAdmin(admin.ModelAdmin):
 admin.site.register(CompanyNonProfitRelationship, CompanyNPRelationshipAdmin)
 
 class UserMatchRelationShipAdmin(admin.ModelAdmin):
-    list_display = ('user_matching_donation','user_being_matched')
+    list_display = ('user_matching_donation','user_being_matched', )
 admin.site.register(UserMatchRelationShip, UserMatchRelationShipAdmin)
 
 
