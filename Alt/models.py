@@ -1,4 +1,5 @@
 from email.policy import default
+from tabnanny import verbose
 from xmlrpc.client import Boolean
 from django.db import models
 from django.conf import settings
@@ -42,7 +43,9 @@ class AltrueActionCode(models.Model):
 
 
 class AltrueAction(models.Model):
+    
     requirement = models.TextField()
+    info = models.TextField(blank=True, null=True)
     points_awarded = models.IntegerField(blank = True, null = True)
     number_of_occurrences = models.IntegerField(blank = True, null=True)
     action_code = models.ForeignKey('Alt.AltrueActionCode', on_delete=models.CASCADE, blank = True, null = True)
@@ -630,14 +633,28 @@ class UserMatchRelationShip(models.Model):
     funding_limit =models.FloatField(default=0, null = True, blank=True)
     needs_permission = models.BooleanField(default=True, blank = True)
     match_level = models.IntegerField(choices=MATCH_PERCENTAGE)
+    was_confirmed = models.BooleanField(default= False, blank = False )
     
     class Meta:
         
         def __str__(self):
-            return '{} matches {}%% for donations to {}'.format(self.user_matching_donations.username, self.match_level, self.user_being_matched.username)
+            return '{} matches {} for donations to {}'.format(self.user_matching_donation, self.match_level, self.user_being_matched)
         
         
 
+class UserMatchTransaction(models.Model):
+    relationship = models.ForeignKey('Alt.UserMatchRelationShip', related_name='user_match_transaction', on_delete=models.CASCADE)
+    transaction_date = models.DateTimeField( auto_now_add=True, null=False, blank=False)
+    total_amount = models.FloatField(blank=True, null=True)
+    confirmed = models.BooleanField(default = False)
+
+
+    class Meta:
+        verbose_name =('UserMatchTransactions')
+    
+    
+    def __str__(self):
+        return self.relationship.user_being_matched.username
 
 
 class CompanyNonProfitRelationship(models.Model):
@@ -869,6 +886,8 @@ def createNPRelationShipIfnotCreated(instance, created, **kwargs):
 
 # @receiver(post_save, sender = 'api.UserProfile')
 # def created   
+
+
 
     
 

@@ -18,7 +18,7 @@ from io import BytesIO
 from io import StringIO
 from django.core.files.uploadedfile import InMemoryUploadedFile
 import Alt
-from Alt.models import AltrueAction, AltrueActionCode, AltrueLevel, Atrocity, CompanyAtrocityRelationship, CompanyDonation, CompanyNonProfitRelationship, CompanyProjectRelationShip, ForProfitCompany, NonProfit, NonProfitProject, UserAltrueAction, ProfileImage
+from Alt.models import AltrueAction, AltrueActionCode, AltrueLevel, Atrocity, CompanyAtrocityRelationship, CompanyDonation, CompanyNonProfitRelationship, CompanyProjectRelationShip, ForProfitCompany, NonProfit, NonProfitProject, UserAltrueAction, ProfileImage, UserMatchRelationShip, UserMatchTransaction
 from django.core.exceptions import ObjectDoesNotExist
 import decimal
 from django.utils import timezone
@@ -567,6 +567,22 @@ def profile_updated(sender, instance, created=True,  **kwargs):
                
 
     
+
+
+@receiver(post_save, sender= UserDonation)
+def matchUserDonation(sender, instance, created = True, **kwargs):
+    userWhoDonated = instance.user
+    if created:
+        ##get all users who have matching relationships with the user who donated
+        relationships = UserMatchRelationShip.objects.filter(user_being_matched = userWhoDonated)
+        # get the amount donated by user
+        amount  = float(instance.amount)
+        # for each user find the amount that they chose to match based on matching relationship
+        for relationship in relationships:
+            amount_being_matched = amount * (relationship.match_level/100)
+            if amount_being_matched <= relationship.funding_limit:
+                UserMatchTransaction.objects.create(relationship = relationship, total_amount = amount_being_matched, confirmed = False)
+
 
 
 
